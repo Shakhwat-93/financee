@@ -1,0 +1,18 @@
+{
+  "appId": "com.hisab.khata",
+  "appName": "হিসাব খাতা",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#0A0C0C",
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0A0C0C"
+    }
+  }
+}

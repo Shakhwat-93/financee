@@ -1,0 +1,22 @@
+{
+  "name": "hisab-khata",
+  "version": "1.0.0",
+  "description": "হিসাব খাতা — আয়, অ্যাড খরচ আর ক্লায়েন্ট পেমেন্টের হিসাব রাখার মোবাইল অ্যাপ",
+  "main": "index.html",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "start": "node scripts/serve.js",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:open": "npx cap open android",
+    "cap:add": "npx cap add android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<title>হিসাব খাতা</title>
+<meta name="theme-color" content="#0A0C0C">
+<meta name="description" content="আয়, অ্যাড খরচ আর ক্লায়েন্ট পেমেন্টের হিসাব">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="হিসাব">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<!--APP-->
+<div class="app" id="app">
+  <div class="stage" id="stage">
+
+    <!-- ============ হোম ============ -->
+    <section class="screen screen-home" id="s-home" aria-label="হোম">
+      <div class="home-top">
+        <header class="topbar" data-st>
+          <button class="avatar-btn" id="avatarBtn" aria-label="সেটিংস"></button>
+          <div class="month-pill">
+            <button data-mprev aria-label="আগের মাস"></button>
+            <span class="month-lbl"></span>
+            <button data-mnext aria-label="পরের মাস"></button>
+          </div>
+        </header>
+
+        <div class="hero">
+          <div class="hero-text">
+            <div class="label" id="netLabel" data-st>এই মাসের নেট লাভ</div>
+            <div class="big-amount" id="netAmount" data-st></div>
+            <div class="hero-sub" id="heroSub" data-st></div>
+            <div class="pill-row" data-st>
+              <button class="pill pill-light" data-add="income"><i></i>আয়</button>
+              <button class="pill pill-dark" data-add="expense">খরচ</button>
+            </div>
+          </div>
+          <button class="card-stack" id="cardStack" data-tab="services" aria-label="সার্ভিস দেখুন" data-st></button>
+        </div>
+
+        <button class="spend-card" id="spendCard" data-tab="stats" data-st>
+          <span>
+            <span class="spend-lbl" id="spendLbl">খরচ</span>
+            <span class="spend-val" id="spendVal">৳0</span>
+          </span>
+          <span class="bubbles" id="spendBubbles"></span>
+        </button>
+      </div>
+
+      <div class="list-sheet" data-st>
+        <div class="grab"></div>
+        <div class="demo-bar" id="demoBar" hidden>
+          <span>ডেমো ডেটা দেখানো হচ্ছে</span>
+          <button id="clearDemoBtn">মুছে শুরু করুন</button>
+        </div>
+        <div class="list-head">
+          <button class="icon-btn-l" id="filterBtn" aria-label="ফিল্টার"></button>
+          <span>লেনদেন</span>
+          <button class="icon-btn-l" id="searchBtn" aria-label="খুঁজুন"></button>
+        </div>
+        <div class="search-wrap" id="searchWrap">
+          <input id="searchInput" type="search" placeholder="ক্লায়েন্ট, সার্ভিস বা নোট খুঁজুন" autocomplete="off">
+        </div>
+        <div class="chips" id="txChips">
+          <button class="chip on" data-f="all">সব</button>
+          <button class="chip" data-f="income">আয়</button>
+          <button class="chip" data-f="expense">খরচ</button>
+        </div>
+        <div id="txList"></div>
+      </div>
+    </section>
+
+    <!-- ============ সার্ভিস (কার্ড) ============ -->
+    <section class="screen" id="s-services" aria-label="সার্ভিস" hidden>
+      <header class="page-head" data-st>
+        <div>
+          <h1>সার্ভিস</h1>
+          <div class="page-sub month-lbl"></div>
+        </div>
+        <button class="head-btn" id="newServiceBtn">নতুন সার্ভিস</button>
+      </header>
+      <div class="svc-list" id="svcList"></div>
+      <p class="foot-note" data-st>কার্ডে দেখানো অ্যাড খরচ হলো যেসব খরচ আপনি ঐ সার্ভিসের নামে ট্যাগ করেছেন। সুইচ বন্ধ করলে সার্ভিসটা এন্ট্রির তালিকায় আর আসবে না।</p>
+    </section>
+
+    <!-- ============ ক্লায়েন্ট ============ -->
+    <section class="screen screen-clients" id="s-clients" aria-label="ক্লায়েন্ট" hidden>
+      <div class="clients-top">
+        <header class="page-head" data-st>
+          <h1>ক্লায়েন্ট</h1>
+          <button class="head-btn" id="newClientBtn">যোগ করুন</button>
+        </header>
+        <div class="people" id="peopleGrid"></div>
+      </div>
+      <div class="list-sheet" data-st>
+        <div class="grab"></div>
+        <div class="list-head list-head-left">
+          <div class="chips chips-tight" id="clientChips">
+            <button class="chip on" data-cf="all">সব</button>
+            <button class="chip" data-cf="month">এই মাসে</button>
+          </div>
+          <button class="icon-btn-l" id="clientSearchBtn" aria-label="খুঁজুন"></button>
+        </div>
+        <div class="search-wrap" id="clientSearchWrap">
+          <input id="clientSearch" type="search" placeholder="ক্লায়েন্টের নাম খুঁজুন" autocomplete="off">
+        </div>
+        <div id="clientList"></div>
+      </div>
+    </section>
+
+    <!-- ============ রিপোর্ট ============ -->
+    <section class="screen" id="s-stats" aria-label="রিপোর্ট" hidden>
+      <header class="page-head" data-st>
+        <h1>রিপোর্ট</h1>
+        <div class="month-pill">
+          <button data-mprev aria-label="আগের মাস"></button>
+          <span class="month-lbl"></span>
+          <button data-mnext aria-label="পরের মাস"></button>
+        </div>
+      </header>
+      <div class="verdict" id="verdict" data-st></div>
+      <div class="kpis" id="kpis"></div>
+      <section class="dark-card" data-st>
+        <div class="dc-head">
+          <h2>৬ মাসের ট্রেন্ড</h2>
+          <div class="legend"><span><i style="background:var(--inc)"></i>আয়</span><span><i style="background:var(--exp)"></i>খরচ</span></div>
+        </div>
+        <div class="trend" id="trend"></div>
+        <div class="trend-read" id="trendRead"></div>
+      </section>
+      <section class="dark-card" data-st>
+        <div class="dc-head"><h2>সার্ভিস অনুযায়ী</h2><span class="dc-sub">আয় · অ্যাড খরচ · নেট</span></div>
+        <div id="svcBreak"></div>
+      </section>
+      <section class="dark-card" data-st>
+        <div class="dc-head"><h2>খরচ কোথায় গেল</h2></div>
+        <div id="expBreak"></div>
+      </section>
+    </section>
+
+    <!-- ট্যাব বার -->
+    <nav class="tabbar" id="tabbar" aria-label="মেনু">
+      <span class="tab-ind" id="tabInd"></span>
+      <button class="tab on" data-tab="home" aria-label="হোম"></button>
+      <button class="tab" data-tab="services" aria-label="সার্ভিস"></button>
+      <button class="tab" data-tab="clients" aria-label="ক্লায়েন্ট"></button>
+      <button class="tab" data-tab="stats" aria-label="রিপোর্ট"></button>
+    </nav>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============ এন্ট্রি কি-প্যাড শিট ============ -->
+  <section class="sheet entry-sheet" id="entrySheet" hidden aria-label="নতুন এন্ট্রি">
+    <div class="drag-zone">
+      <div class="grab"></div>
+      <div class="seg" id="typeSeg">
+        <button data-type="income" class="on">আয়</button>
+        <button data-type="expense">খরচ</button>
+      </div>
+      <button class="ctx" id="ctxBtn"><span id="ctxText"></span><i id="ctxChev"></i></button>
+    </div>
+
+    <div class="amount-zone" id="amountZone">
+      <div class="amount-line placeholder" id="amtLine"></div>
+      <span class="amt-avatar" id="amtAvatar" hidden></span>
+      <button class="eq-chip" id="eqChip" hidden></button>
+      <div class="avail" id="availLine"></div>
+      <button class="swipe-hint" id="swipeHint" hidden aria-label="সেভ করুন">
+        <i id="handIc"></i>
+        <span>ডানে সোয়াইপ করে সেভ করুন</span>
+      </button>
+    </div>
+
+    <div class="ops" id="opsRow">
+      <button data-k="+">+</button><button data-k="−">−</button><button data-k="×">×</button><button data-k="÷">÷</button>
+    </div>
+    <div class="keys" id="keys">
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key" data-k=".">.</button><button class="key" data-k="0">0</button><button class="key" data-k="del" aria-label="মুছুন" id="delKey"></button>
+    </div>
+
+    <!-- বিস্তারিত বাছাই প্যানেল -->
+    <div class="ctx-panel" id="ctxPanel" aria-hidden="true">
+      <div class="ctx-panel-in" id="ctxPanelIn"></div>
+      <div class="ctx-foot"><button class="btn-dark" id="ctxDone">ঠিক আছে</button></div>
+    </div>
+  </section>
+
+  <!-- ============ সাধারণ শিট (বিস্তারিত / সেটিংস) ============ -->
+  <section class="sheet modal-sheet" id="modal" hidden>
+    <div class="drag-zone"><div class="grab"></div></div>
+    <div class="modal-body" id="modalBody"></div>
+  </section>
+
+  <!-- ============ সফল স্ক্রিন ============ -->
+  <div class="success" id="success" hidden>
+    <span class="blob" id="blob"></span>
+    <div class="success-in" id="successIn">
+      <svg class="check" viewBox="0 0 52 52" aria-hidden="true"><path d="M14 27.5 22.5 36 39 17"/></svg>
+      <div class="s-amount" id="sAmount"></div>
+      <div class="s-text" id="sText"></div>
+    </div>
+    <div class="s-hint">যেকোনো জায়গায় চাপ দিয়ে বন্ধ করুন</div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+</div>
+<!--/APP-->
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

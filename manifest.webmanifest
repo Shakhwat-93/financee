@@ -1,0 +1,40 @@
+{
+  "name": "হিসাব খাতা",
+  "short_name": "হিসাব",
+  "description": "আয়, অ্যাড খরচ আর ক্লায়েন্ট পেমেন্টের হিসাব",
+  "lang": "bn",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0C0C",
+  "theme_color": "#0A0C0C",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "নতুন আয়",
+      "short_name": "আয়",
+      "description": "দ্রুত আয়ের হিসাব যোগ করুন",
+      "url": "./?action=income",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "নতুন খরচ",
+      "short_name": "খরচ",
+      "description": "বিজ্ঞাপন বা নতুন খরচ যোগ করুন",
+      "url": "./?action=expense",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "রিপোর্ট ও লাভ",
+      "short_name": "রিপোর্ট",
+      "description": "লাভ/লস ও ট্রেন্ড রিপোর্ট দেখুন",
+      "url": "./?action=stats",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
