@@ -130,15 +130,60 @@
   }
   var monthEntries = function (k) { return S.entries.filter(function (e) { return inMonth(e, k); }); };
 
-  /* ---------------- অ্যানিমেশন হেল্পার ---------------- */
+  /* ---------------- অ্যানিমেশন হেল্পার (60-120fps GPU only) ---------------- */
   function stagger(root) {
     if (reduceMotion || !root.animate) return;
-    $$('[data-st]', root).forEach(function (el, i) {
+    $$('[data-st]', root).slice(0, 6).forEach(function (el, i) {
       el.animate(
-        [{ opacity: 0, transform: 'translateY(18px)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }],
-        { duration: 620, delay: 40 + i * 50, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }
+        [{ opacity: 0, transform: 'translate3d(0,14px,0)' }, { opacity: 1, transform: 'translate3d(0,0,0)' }],
+        { duration: 360, delay: 20 + i * 35, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }
       );
     });
+  }
+
+  function burstConfetti() {
+    if (reduceMotion) return;
+    var app = $('#app'); if (!app) return;
+    var cv = document.createElement('canvas');
+    cv.className = 'confetti-cv';
+    cv.width = app.clientWidth; cv.height = app.clientHeight;
+    app.appendChild(cv);
+    var g = cv.getContext('2d');
+    var cols = ['#FFE14A', '#2BE8B5', '#FFFFFF', '#2AA8FF', '#FF7EB6'];
+    var parts = [];
+    for (var i = 0; i < 42; i++) {
+      var ang = Math.random() * Math.PI * 2;
+      var spd = 3 + Math.random() * 7;
+      parts.push({
+        x: cv.width / 2, y: cv.height * 0.45,
+        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 3.5,
+        sz: 4 + Math.random() * 5, c: cols[i % cols.length],
+        rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, a: 1
+      });
+    }
+    var frame = 0;
+    var tick = function () {
+      g.clearRect(0, 0, cv.width, cv.height);
+      frame++;
+      var alive = false;
+      parts.forEach(function (p) {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.22; p.rot += p.vr;
+        p.a = Math.max(0, 1 - frame / 65);
+        if (p.a > 0) {
+          alive = true;
+          g.save();
+          g.globalAlpha = p.a;
+          g.translate(p.x, p.y);
+          g.rotate(p.rot);
+          g.fillStyle = p.c;
+          g.fillRect(-p.sz / 2, -p.sz / 2, p.sz, p.sz * 0.6);
+          g.restore();
+        }
+      });
+      if (alive && frame < 70) requestAnimationFrame(tick);
+      else cv.remove();
+    };
+    requestAnimationFrame(tick);
   }
 
   function moneyHTML(v) {
@@ -407,6 +452,47 @@
     ].map(function (x) {
       return '<div class="kpi" data-st><div class="k">' + (x.c ? '<i style="background:' + x.c + '"></i>' : '') + x.k + '</div><div class="v">' + x.v + '</div><div class="s">' + x.s + '</div></div>';
     }).join('');
+
+    // স্মার্ট ইনসাইটস (Smart Insights)
+    var insBox = $('#insightsCard');
+    if (insBox) {
+      var isEn = window.I18n && window.I18n.lang() === 'en';
+      var pm = ui.month.m - 1, py = ui.month.y;
+      if (pm < 0) { pm = 11; py--; }
+      var prevT = totals(monthEntries(monthKey(py, pm)));
+      var insights = [];
+      if (prevT.inc > 0 && t.inc > 0) {
+        var diffPct = Math.round(((t.inc - prevT.inc) / prevT.inc) * 100);
+        insights.push(isEn
+          ? 'Revenue is <b>' + (diffPct >= 0 ? '+' : '') + diffPct + '%</b> compared to last month (' + fmt$(prevT.inc) + ').'
+          : 'গত মাসের (' + fmt$(prevT.inc) + ') তুলনায় এই মাসে আয় <b>' + (diffPct >= 0 ? '+' : '') + diffPct + '%</b>।');
+      }
+      var topSvc = S.services.map(function (s) {
+        var sum = list.reduce(function (a, e) { return e.type === 'income' && e.svc === s.id ? a + e.amount : a; }, 0);
+        return { name: s.name, sum: sum };
+      }).sort(function (a, b) { return b.sum - a.sum; })[0];
+      if (topSvc && topSvc.sum > 0 && t.inc > 0) {
+        var share = Math.round((topSvc.sum / t.inc) * 100);
+        insights.push(isEn
+          ? 'Top service: <b>' + esc(topSvc.name) + '</b> contributing <b>' + share + '%</b> of income.'
+          : 'সেরা সার্ভিস: <b>' + esc(topSvc.name) + '</b> — মোট আয়ের <b>' + share + '%</b> এসেছে এখান থেকে।');
+      }
+      var byC = {};
+      list.forEach(function (e) { if (e.type === 'income' && e.client) byC[e.client] = (byC[e.client] || 0) + e.amount; });
+      var topCid = Object.keys(byC).sort(function (a, b) { return byC[b] - byC[a]; })[0];
+      if (topCid && cli(topCid)) {
+        insights.push(isEn
+          ? 'Top client this month: <b>' + esc(cli(topCid).name) + '</b> (' + fmt$(byC[topCid]) + ').'
+          : 'এই মাসের সেরা ক্লায়েন্ট: <b>' + esc(cli(topCid).name) + '</b> (' + fmt$(byC[topCid]) + ')।');
+      }
+      if (insights.length) {
+        insBox.hidden = false;
+        insBox.innerHTML = '<div class="dc-head"><h2>' + (isEn ? 'Smart Insights' : 'স্মার্ট বিশ্লেষণ') + '</h2></div>' +
+          '<div class="insight-list">' + insights.map(function (txt) { return '<div class="insight-row"><i></i><span>' + txt + '</span></div>'; }).join('') + '</div>';
+      } else {
+        insBox.hidden = true;
+      }
+    }
 
     renderTrend();
 
@@ -868,6 +954,7 @@
       var em = E.date.split('-').map(Number);
       ui.month = { y: em[0], m: em[1] - 1 };
       showSuccess(x, y, (E.type === 'income' ? '+' : '−') + curSym() + fmtN(amount), text);
+      if (E.type === 'income') setTimeout(burstConfetti, 220);
     }).catch(function () { springBack(); toast('সেভ হয়নি, আবার চেষ্টা করুন'); });
   }
 
@@ -1683,6 +1770,30 @@
   $('#avatarBtn').addEventListener('click', openSettings);
   if ($('#privacyBtn')) $('#privacyBtn').addEventListener('click', togglePrivacy);
   if ($('#goalCard')) $('#goalCard').addEventListener('click', openGoalSettings);
+
+  // Pull-to-Sync on Home (Google Sheets live refresh)
+  (function () {
+    var home = $('#s-home'), sy = 0, pulling = false;
+    if (!home) return;
+    home.addEventListener('touchstart', function (e) {
+      if (home.scrollTop <= 0 && e.touches.length === 1) {
+        sy = e.touches[0].clientY;
+        pulling = true;
+      }
+    }, { passive: true });
+    home.addEventListener('touchend', function (e) {
+      if (!pulling) return;
+      pulling = false;
+      var dy = (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientY : sy) - sy;
+      if (dy > 90 && home.scrollTop <= 0 && Store.getCloudConfig && Store.getCloudConfig().url) {
+        vib(10);
+        toast(T('syncing'));
+        Store.syncNow().then(function () {
+          toast(window.I18n && window.I18n.lang() === 'en' ? 'Synced with Google Sheets!' : 'গুগল শিটের সাথে সিঙ্ক সম্পন্ন!');
+        }).catch(function () { /* handled */ });
+      }
+    }, { passive: true });
+  })();
   $('#newServiceBtn').addEventListener('click', function () { openServiceForm(); });
   $('#newClientBtn').addEventListener('click', openClientForm);
   document.addEventListener('click', function (e) { if (e.target.closest('#addPersonTile')) openClientForm(); });
