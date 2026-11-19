@@ -38,8 +38,19 @@
   'use strict';
 
   var KEY = 'hisab.v1';
+  var CLOUD_KEY = 'hisab.gsheet.v1';
   var listeners = new Set();
+  var syncListeners = new Set();
   var state = null;
+  var cloud = loadCloud();
+  var syncStatus = {
+    state: cloud.url ? (cloud.pendingPush ? 'offline' : 'idle') : 'disconnected',
+    message: '',
+    lastSync: cloud.lastSync || 0
+  };
+  var pushTimer = null;
+  var isPushing = false;
+  var needAnotherPush = false;
 
   var uid = function () {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -68,8 +79,139 @@
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
   }
+  function loadCloud() {
+    try {
+      var raw = localStorage.getItem(CLOUD_KEY);
+      if (raw) return Object.assign({ url: '', secret: 'hisab123', lastSync: 0, pendingPush: false }, JSON.parse(raw));
+    } catch (e) { /* ignore */ }
+    return { url: '', secret: 'hisab123', lastSync: 0, pendingPush: false };
+  }
+  function saveCloud() {
+    try { localStorage.setItem(CLOUD_KEY, JSON.stringify(cloud)); } catch (e) { /* ignore */ }
+  }
+  function emitSync(st, msg) {
+    syncStatus = { state: st, message: msg || '', lastSync: cloud.lastSync || 0 };
+    syncListeners.forEach(function (fn) { try { fn(syncStatus); } catch (e) { console.error(e); } });
+  }
   function emit() { listeners.forEach(function (fn) { try { fn(state); } catch (e) { console.error(e); } }); }
-  function commit() { save(); emit(); }
+
+  function pushToCloud() {
+    if (!cloud.url) return Promise.resolve({ skipped: true });
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      cloud.pendingPush = true; saveCloud();
+      emitSync('offline', 'অফলাইন — ইন্টারনেট এলে অটো সিঙ্ক হবে');
+      return Promise.resolve({ offline: true });
+    }
+    if (isPushing) {
+      needAnotherPush = true;
+      return Promise.resolve({ queued: true });
+    }
+    isPushing = true;
+    emitSync('syncing', 'গুগল শিটে সেভ হচ্ছে…');
+    return fetch(cloud.url, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'sync_all', secret: cloud.secret || '', state: state })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (json) {
+        isPushing = false;
+        if (!json || !json.ok) {
+          var errMsg = (json && json.error) || 'গুগল শিট সিঙ্ক ব্যর্থ হয়েছে';
+          cloud.pendingPush = true; saveCloud();
+          emitSync('error', errMsg);
+          return Promise.reject(new Error(errMsg));
+        }
+        cloud.pendingPush = false;
+        cloud.lastSync = Date.now();
+        saveCloud();
+        emitSync('synced', 'গুগল শিটে সেভড');
+        if (needAnotherPush) {
+          needAnotherPush = false;
+          return pushToCloud();
+        }
+        return json;
+      })
+      .catch(function (err) {
+        isPushing = false;
+        cloud.pendingPush = true; saveCloud();
+        emitSync('error', err && err.message ? err.message : 'নেটওয়ার্ক সমস্যা');
+        return Promise.reject(err);
+      });
+  }
+
+  function schedulePush() {
+    if (!cloud.url) return;
+    cloud.pendingPush = true;
+    saveCloud();
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () { pushToCloud().catch(function () { /* handled via emitSync */ }); }, 600);
+  }
+
+  function pullFromCloud() {
+    if (!cloud.url) return Promise.resolve({ skipped: true });
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      emitSync('offline', 'অফলাইন মোডে চলছে');
+      return Promise.resolve({ offline: true });
+    }
+    if (cloud.pendingPush) {
+      return pushToCloud();
+    }
+    emitSync('syncing', 'গুগল শিট থেকে লোড হচ্ছে…');
+    var sep = cloud.url.indexOf('?') >= 0 ? '&' : '?';
+    var url = cloud.url + sep + 'secret=' + encodeURIComponent(cloud.secret || '') + '&t=' + Date.now();
+    return fetch(url, { method: 'GET', redirect: 'follow' })
+      .then(function (res) { return res.json(); })
+      .then(function (json) {
+        if (!json || !json.ok) {
+          var errMsg = (json && json.error) || 'গুগল শিট থেকে ডেটা আনা যায়নি';
+          emitSync('error', errMsg);
+          return Promise.reject(new Error(errMsg));
+        }
+        var remote = json.data;
+        if (remote && remote.empty) {
+          // নতুন ফাঁকা শিট: লোকাল ডেটা দিয়ে শিটটি ইনিশিয়ালাইজ করুন
+          return pushToCloud();
+        }
+        if (remote && Array.isArray(remote.entries)) {
+          state = {
+            version: remote.version || 1,
+            demo: !!remote.demo,
+            profile: remote.profile || { name: '' },
+            settings: remote.settings || { currency: 'BDT' },
+            services: Array.isArray(remote.services) && remote.services.length ? remote.services : state.services,
+            clients: Array.isArray(remote.clients) ? remote.clients : [],
+            expenseCats: EXPENSE_CATS,
+            entries: remote.entries
+          };
+          save();
+          emit();
+        }
+        cloud.lastSync = Date.now();
+        saveCloud();
+        emitSync('synced', 'গুগল শিটের সাথে সিঙ্কড');
+        return state;
+      })
+      .catch(function (err) {
+        emitSync('error', err && err.message ? err.message : 'কানেকশন ব্যর্থ');
+        return Promise.reject(err);
+      });
+  }
+
+  function commit() {
+    save();
+    emit();
+    schedulePush();
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', function () {
+      if (cloud.url && cloud.pendingPush) {
+        pushToCloud().catch(function () { /* handled */ });
+      }
+    });
+  }
 
   /* ---------- প্রথমবার খুললে দেখানোর জন্য ডেমো ডেটা ---------- */
   function seed() {
@@ -153,7 +295,46 @@
       if (!state.expenseCats) state.expenseCats = EXPENSE_CATS;
       if (!state.profile) state.profile = { name: '' };
       if (!state.settings) state.settings = { currency: 'BDT' };
+      if (cloud.url) {
+        setTimeout(function () { pullFromCloud().catch(function () { /* handled via syncStatus */ }); }, 150);
+      }
       return Promise.resolve(state);
+    },
+
+    getCloudConfig: function () {
+      return Object.assign({}, cloud);
+    },
+
+    setCloudConfig: function (cfg) {
+      cloud.url = String((cfg && cfg.url) || '').trim();
+      cloud.secret = String((cfg && cfg.secret) != null ? cfg.secret : '').trim();
+      cloud.pendingPush = false;
+      saveCloud();
+      if (!cloud.url) {
+        emitSync('disconnected', '');
+        return Promise.resolve({ disconnected: true });
+      }
+      return pullFromCloud();
+    },
+
+    disconnectCloud: function () {
+      clearTimeout(pushTimer);
+      cloud = { url: '', secret: 'hisab123', lastSync: 0, pendingPush: false };
+      saveCloud();
+      emitSync('disconnected', '');
+      return Promise.resolve();
+    },
+
+    syncNow: function () {
+      if (!cloud.url) return Promise.reject(new Error('গুগল শিট কানেক্ট করা নেই'));
+      return pullFromCloud();
+    },
+
+    getSyncStatus: function () { return syncStatus; },
+
+    onSyncStatus: function (fn) {
+      syncListeners.add(fn);
+      return function () { syncListeners.delete(fn); };
     },
 
     get: function () { return state; },

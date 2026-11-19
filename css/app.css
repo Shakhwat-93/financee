@@ -120,12 +120,26 @@ svg { display: block; }
 }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .avatar-btn {
+  position: relative;
   width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center;
   font-weight: 800; font-size: 16px; color: #111;
   background: conic-gradient(from 200deg, #FFE14A, #2BE8B5, #2AA8FF, #FFE14A);
   box-shadow: 0 0 0 3px var(--app-bg), 0 0 0 4px rgba(255, 255, 255, .12);
 }
+.avatar-btn[data-sync]::after {
+  content: "";
+  position: absolute; right: -2px; bottom: -2px;
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 2.5px solid var(--app-bg);
+  background: var(--pos-d);
+  transition: transform .25s var(--ease), opacity .25s;
+}
+.avatar-btn[data-sync="syncing"]::after { background: #FFC83D; animation: syncPulse 1s ease-in-out infinite; }
+.avatar-btn[data-sync="offline"]::after,
+.avatar-btn[data-sync="error"]::after { background: var(--neg-d); }
+.avatar-btn[data-sync="disconnected"]::after { opacity: 0; transform: scale(0); }
+@keyframes syncPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.72); opacity: .5; } }
 .month-pill {
   display: flex; align-items: center; gap: 2px;
   background: var(--d2); border: 1px solid var(--line-d);
@@ -522,6 +536,25 @@ svg { display: block; }
 .set-item small { display: block; color: var(--mut); font-size: 12.5px; }
 .set-item.danger b { color: #C3352B; }
 .set-item.armed { background: #FDECEA; }
+.set-item.cloud-on { background: #EBF9F0; }
+.set-item.cloud-on .si-ic { background: #18A957; color: #fff; }
+.cloud-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  background: var(--paper-2); color: #555; margin-top: 8px;
+}
+.cloud-badge i { width: 8px; height: 8px; border-radius: 50%; background: #9A9D9C; display: inline-block; }
+.cloud-badge.ok { background: #EBF9F0; color: #128344; }
+.cloud-badge.ok i { background: #18A957; }
+.cloud-badge.warn { background: #FFF6CC; color: #7A6200; }
+.cloud-badge.warn i { background: #E6A700; }
+.cloud-badge.err { background: #FDECEA; color: #C3352B; }
+.cloud-badge.err i { background: #D93A2F; }
+.cloud-steps {
+  margin-top: 16px; padding: 14px; border-radius: 16px; background: var(--paper-2);
+  font-size: 12.5px; color: #555; line-height: 1.6;
+}
+.cloud-steps b { color: var(--ink); }
 .color-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .color-dot { width: 40px; height: 40px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1.5px #E2E2DF; transition: transform .15s; }
 .color-dot.on { box-shadow: 0 0 0 2.5px var(--ink); transform: scale(1.06); }

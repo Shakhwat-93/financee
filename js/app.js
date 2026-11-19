@@ -79,6 +79,7 @@
     upload: '<path d="M12 15V4M7 8.5l5-5 5 5M5 20h14"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
     share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+    cloud: '<path d="M6.5 19h11a4 4 0 0 0 .8-7.9A5.5 5.5 0 0 0 7.7 9.4 4.2 4.2 0 0 0 6.5 19z"/>',
     copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>',
     refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4.5v4h-4"/>',
     user: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1-3.7 4-5.8 7.5-5.8s6.5 2.1 7.5 5.8"/>',
@@ -1040,11 +1041,93 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   }
 
+  function fmtSyncTime(ts) {
+    if (!ts) return 'কখনো না';
+    var d = new Date(ts);
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ' · ' + d.getDate() + ' ' + BN_MS[d.getMonth()];
+  }
+
+  function openCloudSettings() {
+    var cfg = Store.getCloudConfig();
+    var st = Store.getSyncStatus();
+    var connected = !!cfg.url;
+    var badgeCls = !connected ? '' : (st.state === 'error' ? ' err' : (st.state === 'offline' || st.state === 'syncing' ? ' warn' : ' ok'));
+    var badgeText = !connected ? 'কানেক্ট করা নেই' :
+      st.state === 'syncing' ? 'সিঙ্ক হচ্ছে…' :
+      st.state === 'offline' ? 'অফলাইন (পেন্ডিং)' :
+      st.state === 'error' ? ('সমস্যা: ' + (st.message || 'আবার চেষ্টা করুন')) :
+      'কানেক্টেড · শেষ সিঙ্ক ' + fmtSyncTime(cfg.lastSync);
+
+    openModal(
+      '<h3 class="m-title">গুগল শিট ডাটাবেস</h3>' +
+      '<p class="m-sub">সব হিসাব আপনার নিজের Google Sheet-এ অটোমেটিক সেভ হবে। ইন্টারনেট না থাকলেও কাজ করবে।</p>' +
+      '<div class="cloud-badge' + badgeCls + '"><i></i><span>' + esc(badgeText) + '</span></div>' +
+      '<div class="p-sec"><label for="gsUrl">Apps Script Web App URL</label>' +
+      '<input class="field" id="gsUrl" type="url" value="' + esc(cfg.url || '') + '" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off"></div>' +
+      '<div class="p-sec"><label for="gsSecret">সিক্রেট পিন (ঐচ্ছিক)</label>' +
+      '<input class="field" id="gsSecret" value="' + esc(cfg.secret || 'hisab123') + '" placeholder="hisab123" autocomplete="off"></div>' +
+      '<div style="margin-top:18px"><button class="btn-dark" id="gsSave">' + (connected ? 'আপডেট ও সিঙ্ক করুন' : 'কানেক্ট ও সিঙ্ক করুন') + '</button></div>' +
+      (connected ? '<div class="btn-row"><button class="btn-light" id="gsSyncNow">এখনই সিঙ্ক</button><button class="btn-danger" id="gsDisc">ডিসকানেক্ট</button></div>' : '') +
+      '<div class="cloud-steps"><b>সেটআপ গাইড:</b><br>' +
+      '১. আপনার Google Sheet-এ <b>Extensions → Apps Script</b> খুলুন।<br>' +
+      '২. <code>google-sheets-script.gs</code> কোডটি পেস্ট করে Save দিন।<br>' +
+      '৩. <b>Deploy → New deployment → Web app</b> (Who has access: <b>Anyone</b>) করে পাওয়া URL-টি উপরে পেস্ট করুন।</div>',
+      function (root) {
+        var saveBtn = $('#gsSave', root);
+        saveBtn.onclick = function () {
+          var url = $('#gsUrl', root).value.trim();
+          var secret = $('#gsSecret', root).value.trim();
+          if (!url || url.indexOf('https://script.google.com/') !== 0) {
+            toast('সঠিক Google Apps Script URL দিন');
+            $('#gsUrl', root).focus();
+            return;
+          }
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'কানেক্ট হচ্ছে…';
+          Store.setCloudConfig({ url: url, secret: secret })
+            .then(function () {
+              closeModal();
+              toast('গুগল শিট সফলভাবে কানেক্ট ও সিঙ্ক হয়েছে!');
+            })
+            .catch(function (err) {
+              saveBtn.disabled = false;
+              saveBtn.textContent = connected ? 'আপডেট ও সিঙ্ক করুন' : 'কানেক্ট ও সিঙ্ক করুন';
+              toast('ব্যর্থ: ' + (err && err.message ? err.message : 'URL বা পিন চেক করুন'));
+            });
+        };
+        var syncBtn = $('#gsSyncNow', root);
+        if (syncBtn) {
+          syncBtn.onclick = function () {
+            syncBtn.disabled = true;
+            syncBtn.textContent = 'সিঙ্ক হচ্ছে…';
+            Store.syncNow()
+              .then(function () { closeModal(); toast('গুগল শিটের সাথে সিঙ্ক সম্পন্ন!'); })
+              .catch(function (err) {
+                syncBtn.disabled = false; syncBtn.textContent = 'এখনই সিঙ্ক';
+                toast('সিঙ্ক হয়নি: ' + (err && err.message ? err.message : 'ইন্টারনেট চেক করুন'));
+              });
+          };
+        }
+        var discBtn = $('#gsDisc', root);
+        if (discBtn) {
+          discBtn.onclick = function () {
+            Store.disconnectCloud().then(function () {
+              closeModal();
+              toast('গুগল শিট ডিসকানেক্ট করা হয়েছে');
+            });
+          };
+        }
+      });
+  }
+
   function openSettings() {
     var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
     var installSub = standalone ? 'অ্যাপ হিসেবে চলছে' : deferredInstall ? 'হোম স্ক্রিনে অ্যাপ হিসেবে রাখুন' : isIOS ? 'Safari-তে Share → “Add to Home Screen”' : 'ব্রাউজার মেনু → “Install app / Add to Home screen”';
     var cur = (S.settings && S.settings.currency) || 'BDT';
+    var cloudCfg = Store.getCloudConfig();
+    var cloudConnected = !!cloudCfg.url;
+    var cloudSub = cloudConnected ? 'কানেক্টেড · শেষ সিঙ্ক ' + fmtSyncTime(cloudCfg.lastSync) : 'ফ্রি ক্লাউড ডাটাবেস ও অটো-সিঙ্ক চালু করুন';
 
     openModal(
       '<h3 class="m-title">সেটিংস</h3>' +
@@ -1055,6 +1138,7 @@
       '<button class="chip ' + (cur === 'USD' ? 'on' : '') + '" data-c="USD">$ ডলার (USD)</button>' +
       '</div></div>' +
       '<div class="set-list">' +
+      '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>গুগল শিট ডাটাবেস</b><small>' + esc(cloudSub) + '</small></span></button>' +
       '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>অ্যাপ ইন্সটল করুন</b><small>' + installSub + '</small></span></button>' +
       '<button class="set-item" id="setBackup"><span class="si-ic">' + ic('file', 18) + '</span><span><b>ব্যাকআপ ডাউনলোড করুন</b><small>সম্পূর্ণ ডেটা JSON ফাইল হিসেবে ফোনে সেভ হবে</small></span></button>' +
       '<button class="set-item" id="setRestore"><span class="si-ic">' + ic('upload', 18) + '</span><span><b>ব্যাকআপ রিস্টোর করুন</b><small>আগের সংরক্ষিত JSON ফাইল থেকে ডেটা আনুন</small></span></button>' +
@@ -1067,6 +1151,7 @@
       '<input type="file" id="restoreInput" accept=".json,application/json" style="display:none">',
       function (root) {
         $('#profName', root).onchange = function (e) { Store.setProfile({ name: e.target.value.trim() }); };
+        $('#setCloud', root).onclick = function () { closeModal(); setTimeout(openCloudSettings, 200); };
         $('#currChips', root).onclick = function (e) {
           var b = e.target.closest('[data-c]'); if (!b) return;
           var nextC = b.dataset.c;
@@ -1228,12 +1313,18 @@
   function paintAvatar() {
     $('#avatarBtn').textContent = S.profile.name ? initials(S.profile.name) : 'হি';
   }
+  function paintSyncBadge(st) {
+    var btn = $('#avatarBtn');
+    if (btn) btn.dataset.sync = (st && st.state) || 'disconnected';
+  }
 
   /* ---------------- শুরু ---------------- */
   Store.init().then(function (state) {
     S = state;
     paintIcons();
     paintAvatar();
+    paintSyncBadge(Store.getSyncStatus());
+    Store.onSyncStatus(paintSyncBadge);
     renderTab('home', true);
     requestAnimationFrame(updateTabbar);
     stagger($('#s-home'));
