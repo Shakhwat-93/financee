@@ -245,6 +245,30 @@
     if (!cats.length) bub = '<span class="bubble more">' + ic('chart', 15, 2.2) + '</span>';
     $('#spendBubbles').innerHTML = bub;
 
+    // মাসিক গোল ও অ্যাড বাজেট কার্ড
+    var gCard = $('#goalCard');
+    var goal = Number((S.settings && S.settings.monthlyGoal) || 0);
+    var adBud = Number((S.settings && S.settings.adBudget) || 0);
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    if (gCard && (goal > 0 || adBud > 0)) {
+      gCard.hidden = false;
+      var pct = goal > 0 ? Math.round((t.inc / goal) * 100) : 0;
+      var ratio = Math.max(0, Math.min(1, goal > 0 ? t.inc / goal : 0));
+      $('#goalLbl').textContent = goal > 0 ? (isEn ? 'Monthly Income Goal' : 'মাসিক আয়ের লক্ষ্য') : (isEn ? 'Monthly Ad Budget' : 'মাসিক অ্যাড বাজেট');
+      $('#goalPct').textContent = goal > 0 ? (pct + '%') : (adBud > 0 ? Math.round((t.ads / adBud) * 100) + '%' : '0%');
+      $('#goalFill').style.transform = 'scaleX(' + (goal > 0 ? ratio : Math.min(1, t.ads / (adBud || 1))).toFixed(4) + ')';
+      var leftTxt = goal > 0 ? (fmt$(t.inc) + ' / ' + fmt$(goal)) : (fmt$(t.ads) + ' / ' + fmt$(adBud));
+      var rightTxt = '';
+      if (adBud > 0 && t.ads >= adBud * 0.8) {
+        rightTxt = '<span class="goal-warn">' + (isEn ? 'Ad budget ' : 'অ্যাড বাজেট ') + Math.round((t.ads / adBud) * 100) + '%</span>';
+      } else if (goal > 0 && t.inc >= goal) {
+        rightTxt = '<span style="color:var(--pos-d);font-weight:700">' + (isEn ? 'Goal Reached! ★' : 'লক্ষ্য পূরণ! ★') + '</span>';
+      }
+      $('#goalSub').innerHTML = '<span>' + leftTxt + '</span>' + rightTxt;
+    } else if (gCard) {
+      gCard.hidden = true;
+    }
+
     renderTxList();
   }
 
@@ -956,26 +980,147 @@
   /* =================================================================
      বিস্তারিত শিটগুলো
      ================================================================= */
+  function shareReceiptPNG(e) {
+    var t = txText(e), s = svc(e.svc), c = cli(e.client), k = e.type === 'expense' ? cat(e.cat) : null;
+    var isInc = e.type === 'income';
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var W = 720, H = 880;
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var g = cv.getContext('2d');
+
+    // Dark luxury card background
+    var bg = g.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#0E1212');
+    bg.addColorStop(1, '#070909');
+    g.fillStyle = bg;
+    g.fillRect(0, 0, W, H);
+
+    // Ambient top glow
+    var rad = g.createRadialGradient(W * 0.5, 110, 10, W * 0.5, 110, 320);
+    rad.addColorStop(0, isInc ? 'rgba(61, 220, 132, 0.22)' : 'rgba(255, 138, 76, 0.20)');
+    rad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    g.fillStyle = rad;
+    g.fillRect(0, 0, W, H);
+
+    // Inner card frame
+    g.strokeStyle = 'rgba(255,255,255,0.10)';
+    g.lineWidth = 2;
+    g.strokeRect(32, 32, W - 64, H - 64);
+
+    // Brand header
+    g.fillStyle = '#FFFFFF';
+    g.font = '800 30px Manrope, sans-serif';
+    g.textAlign = 'left';
+    g.fillText((S.profile && S.profile.name) || T('appTitle'), 64, 102);
+
+    g.fillStyle = isInc ? '#3DDC84' : '#FF8A4C';
+    g.font = '700 20px Manrope, sans-serif';
+    g.textAlign = 'right';
+    g.fillText(isInc ? (isEn ? 'PAYMENT RECEIPT' : 'পেমেন্ট রসিদ') : (isEn ? 'EXPENSE VOUCHER' : 'খরচের রসিদ'), W - 64, 100);
+
+    // Divider
+    g.strokeStyle = 'rgba(255,255,255,0.08)';
+    g.beginPath(); g.moveTo(64, 134); g.lineTo(W - 64, 134); g.stroke();
+
+    // Big amount
+    g.textAlign = 'center';
+    g.fillStyle = isInc ? '#3DDC84' : '#FFFFFF';
+    g.font = '800 76px Manrope, sans-serif';
+    g.fillText((isInc ? '+' : '−') + curSym() + fmtN(e.amount), W / 2, 250);
+
+    g.fillStyle = '#8A9292';
+    g.font = '600 24px Manrope, sans-serif';
+    g.fillText(t.title, W / 2, 298);
+
+    // Status pill
+    g.fillStyle = isInc ? 'rgba(61,220,132,0.16)' : 'rgba(255,138,76,0.16)';
+    g.fillRect(W / 2 - 90, 324, 180, 44);
+    g.fillStyle = isInc ? '#3DDC84' : '#FF8A4C';
+    g.font = '800 18px Manrope, sans-serif';
+    g.fillText(isInc ? '✓ VERIFIED' : '✓ RECORDED', W / 2, 353);
+
+    // Details rows
+    var rows = [
+      [T('date'), fmtDate(e.date)],
+      [T('type'), isInc ? T('income') : T('expense')],
+      isInc ? [T('work'), s ? s.name : '—'] : [T('expenseType'), k ? k.name : '—'],
+      isInc ? [T('client'), c ? c.name : '—'] : [T('note'), e.note || '—']
+    ];
+    if (isInc && e.note) rows.push([T('note'), e.note]);
+
+    var y = 445;
+    rows.forEach(function (r) {
+      g.fillStyle = '#8A9292';
+      g.font = '600 22px Manrope, sans-serif';
+      g.textAlign = 'left';
+      g.fillText(r[0], 72, y);
+
+      g.fillStyle = '#F3F6F5';
+      g.font = '700 22px Manrope, sans-serif';
+      g.textAlign = 'right';
+      g.fillText(String(r[1]).slice(0, 34), W - 72, y);
+
+      g.strokeStyle = 'rgba(255,255,255,0.06)';
+      g.beginPath(); g.moveTo(72, y + 22); g.lineTo(W - 72, y + 22); g.stroke();
+      y += 66;
+    });
+
+    // Footer
+    g.textAlign = 'center';
+    g.fillStyle = '#5E6666';
+    g.font = '600 18px Manrope, sans-serif';
+    g.fillText(T('appTitle') + ' · ID #' + String(e.id).slice(-6).toUpperCase(), W / 2, H - 68);
+
+    cv.toBlob(function (blob) {
+      if (!blob) return;
+      var fname = 'receipt-' + String(e.id).slice(-6) + '.png';
+      try {
+        var file = new File([blob], fname, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: T('appTitle') }).catch(function () { /* */ });
+          return;
+        }
+      } catch (err) { /* fallback download */ }
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+      toast(isEn ? 'Receipt saved!' : 'রসিদ ডাউনলোড হয়েছে!');
+    }, 'image/png');
+  }
+
   function openTx(id) {
     var e = S.entries.find(function (x) { return x.id === id; });
     if (!e) return;
+    var isEn = window.I18n && window.I18n.lang() === 'en';
     var t = txText(e), s = svc(e.svc), c = cli(e.client), k = e.type === 'expense' ? cat(e.cat) : null, f = e.forSvc && svc(e.forSvc);
-    var rows = [['ধরন', e.type === 'income' ? 'আয়' : 'খরচ'], ['তারিখ', fmtDate(e.date)]];
-    if (e.type === 'income') { rows.push(['কাজ', s ? s.name : '—']); rows.push(['ক্লায়েন্ট', c ? c.name : '—']); }
-    else { rows.push(['খরচের ধরন', k.name]); rows.push(['কোন সার্ভিসের জন্য', f ? f.name : 'সাধারণ খরচ']); }
-    if (e.note) rows.push(['নোট', e.note]);
-    if (e.demo) rows.push(['', 'এটা ডেমো এন্ট্রি']);
+    var rows = [[T('type'), e.type === 'income' ? T('income') : T('expense')], [T('date'), fmtDate(e.date)]];
+    if (e.type === 'income') { rows.push([T('work'), s ? s.name : '—']); rows.push([T('client'), c ? c.name : '—']); }
+    else { rows.push([T('expenseType'), k.name]); rows.push([T('forWhichSvc').replace('?', ''), f ? f.name : T('generalExpense')]); }
+    if (e.note) rows.push([T('note'), e.note]);
     openModal(
       '<div class="d-head">' + txIconHTML(e) + '<div class="d-amt ' + (e.type === 'income' ? 'pos' : '') + '">' + (e.type === 'income' ? '+' : '−') + curSym() + fmtN(e.amount) + '</div><div class="d-title">' + esc(t.title) + '</div></div>' +
       '<div class="d-rows">' + rows.map(function (r) { return '<div><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'; }).join('') + '</div>' +
-      '<div class="btn-row"><button class="btn-danger" id="delBtn">মুছুন</button><button class="btn-dark" id="editBtn">এডিট</button></div>',
+      '<div class="btn-row" style="margin-top:12px"><button class="btn-light" id="rcptBtn" style="height:46px;font-size:13.5px">' + (isEn ? 'Share Receipt' : 'রসিদ শেয়ার') + '</button><button class="btn-light" id="dupBtn" style="height:46px;font-size:13.5px">' + (isEn ? 'Duplicate' : 'ডুপ্লিকেট') + '</button></div>' +
+      '<div class="btn-row" style="margin-top:10px"><button class="btn-danger" id="delBtn">' + T('delete') + '</button><button class="btn-dark" id="editBtn">' + T('edit') + '</button></div>',
       function (root) {
+        $('#rcptBtn', root).onclick = function () { vib(8); shareReceiptPNG(e); };
+        $('#dupBtn', root).onclick = function () {
+          closeModal();
+          setTimeout(function () {
+            openEntry({ type: e.type, expr: String(e.amount), svc: e.svc, client: e.client, cat: e.cat || 'fb', forSvc: e.forSvc, date: todayISO(), note: e.note, editId: null });
+          }, 200);
+        };
         $('#editBtn', root).onclick = function () { openEdit(id); };
         var del = $('#delBtn', root), armed = false, tm;
         del.onclick = function () {
-          if (!armed) { armed = true; vib(15); del.classList.add('armed'); del.textContent = 'নিশ্চিত? আবার চাপুন'; tm = setTimeout(function () { armed = false; del.classList.remove('armed'); del.textContent = 'মুছুন'; }, 3500); return; }
+          if (!armed) { armed = true; vib(15); del.classList.add('armed'); del.textContent = T('confirmAgain'); tm = setTimeout(function () { armed = false; del.classList.remove('armed'); del.textContent = T('delete'); }, 3500); return; }
           clearTimeout(tm);
-          Store.deleteEntry(id).then(function () { closeModal(); toast('মুছে ফেলা হয়েছে'); });
+          Store.deleteEntry(id).then(function () { closeModal(); toast(T('deleted')); });
         };
       });
   }
@@ -1249,6 +1394,30 @@
       });
   }
 
+  function openGoalSettings() {
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var goal = (S.settings && S.settings.monthlyGoal) || '';
+    var adBud = (S.settings && S.settings.adBudget) || '';
+    openModal(
+      '<h3 class="m-title">' + (isEn ? 'Monthly Goals & Budget' : 'মাসিক লক্ষ্য ও বাজেট') + '</h3>' +
+      '<p class="m-sub">' + (isEn ? 'Track your monthly income target & get alerts before overspending on ads.' : 'মাসিক আয়ের টার্গেট ও অ্যাড খরচের সীমা সেট করুন।') + '</p>' +
+      '<div class="p-sec"><label for="inpGoal">' + (isEn ? 'Monthly Income Target (' + curSym() + ')' : 'মাসিক আয়ের লক্ষ্য (' + curSym() + ')') + '</label>' +
+      '<input class="field" id="inpGoal" type="number" min="0" value="' + esc(goal) + '" placeholder="50000"></div>' +
+      '<div class="p-sec"><label for="inpAdBud">' + (isEn ? 'Monthly Ad Spend Limit (' + curSym() + ')' : 'মাসিক অ্যাড খরচের লিমিট (' + curSym() + ')') + '</label>' +
+      '<input class="field" id="inpAdBud" type="number" min="0" value="' + esc(adBud) + '" placeholder="10000"></div>' +
+      '<div style="margin-top:22px"><button class="btn-dark" id="saveGoalBtn">' + T('ok') + '</button></div>',
+      function (root) {
+        $('#saveGoalBtn', root).onclick = function () {
+          var g = Math.max(0, Number($('#inpGoal', root).value) || 0);
+          var a = Math.max(0, Number($('#inpAdBud', root).value) || 0);
+          Store.setSettings({ monthlyGoal: g, adBudget: a }).then(function () {
+            closeModal();
+            toast(T('saved'));
+          });
+        };
+      });
+  }
+
   function openSettings() {
     var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
@@ -1275,6 +1444,7 @@
       '</div></div>' +
       '<div class="set-list">' +
       '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>' + esc(T('googleSheetDb')) + '</b><small>' + esc(cloudSub) + '</small></span></button>' +
+      '<button class="set-item" id="setGoals"><span class="si-ic">' + ic('spark', 18) + '</span><span><b>' + (isEn ? 'Monthly Goals & Budget' : 'মাসিক লক্ষ্য ও বাজেট') + '</b><small>' + (S.settings && S.settings.monthlyGoal ? fmt$(S.settings.monthlyGoal) : (isEn ? 'Set income target & ad budget' : 'মাসিক আয়ের লক্ষ্য ও অ্যাড লিমিট সেট করুন')) + '</small></span></button>' +
       '<button class="set-item" id="setUpdate"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>' + esc(T('appUpdate', { v: window.APP_VERSION || '1.0.0' })) + '</b><small id="setUpdateSub">' + esc(T('checkInstallUpdate')) + '</small></span></button>' +
       '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>' + esc(T('installApp')) + '</b><small>' + installSub + '</small></span></button>' +
       '<button class="set-item" id="setBackup"><span class="si-ic">' + ic('file', 18) + '</span><span><b>' + esc(T('backupDownload')) + '</b><small>' + esc(T('backupDownloadSub')) + '</small></span></button>' +
@@ -1300,6 +1470,7 @@
           });
         };
         $('#setCloud', root).onclick = function () { closeModal(); setTimeout(openCloudSettings, 200); };
+        $('#setGoals', root).onclick = function () { closeModal(); setTimeout(openGoalSettings, 200); };
         $('#setUpdate', root).onclick = function () {
           if (!window.AppUpdater) { toast('আপডেটার পাওয়া যায়নি'); return; }
           var sub = $('#setUpdateSub', root);
@@ -1426,6 +1597,7 @@
   });
 
   $('#avatarBtn').addEventListener('click', openSettings);
+  if ($('#goalCard')) $('#goalCard').addEventListener('click', openGoalSettings);
   $('#newServiceBtn').addEventListener('click', function () { openServiceForm(); });
   $('#newClientBtn').addEventListener('click', openClientForm);
   document.addEventListener('click', function (e) { if (e.target.closest('#addPersonTile')) openClientForm(); });
