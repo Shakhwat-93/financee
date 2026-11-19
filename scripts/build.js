@@ -3,6 +3,7 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const out = path.join(root, 'www');
+const appVersion = process.env.APP_VERSION || ('1.0.' + (process.env.GITHUB_RUN_NUMBER || '0'));
 
 if (fs.existsSync(out)) {
   fs.rmSync(out, { recursive: true, force: true });
@@ -34,4 +35,11 @@ for (const d of dirs) {
   if (fs.existsSync(p)) copyRecursive(p, path.join(out, d));
 }
 
-console.log('✅ Web assets successfully prepared into www folder for mobile app build!');
+// Stamp current build version for OTA Updater
+fs.writeFileSync(
+  path.join(out, 'js', 'version.js'),
+  `window.APP_VERSION = '${appVersion}';\n`,
+  'utf8'
+);
+
+console.log(`✅ Web assets prepared into www/ (version: ${appVersion})`);

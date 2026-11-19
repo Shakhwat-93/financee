@@ -240,7 +240,6 @@
     if (!cats.length) bub = '<span class="bubble more">' + ic('chart', 15, 2.2) + '</span>';
     $('#spendBubbles').innerHTML = bub;
 
-    $('#demoBar').hidden = !S.entries.some(function (e) { return e.demo; });
     renderTxList();
   }
 
@@ -1139,19 +1138,43 @@
       '</div></div>' +
       '<div class="set-list">' +
       '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>গুগল শিট ডাটাবেস</b><small>' + esc(cloudSub) + '</small></span></button>' +
+      '<button class="set-item" id="setUpdate"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>অ্যাপ আপডেট (v' + esc(window.APP_VERSION || '1.0.0') + ')</b><small id="setUpdateSub">নতুন আপডেট চেক ও ইনস্টল করুন</small></span></button>' +
       '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>অ্যাপ ইন্সটল করুন</b><small>' + installSub + '</small></span></button>' +
       '<button class="set-item" id="setBackup"><span class="si-ic">' + ic('file', 18) + '</span><span><b>ব্যাকআপ ডাউনলোড করুন</b><small>সম্পূর্ণ ডেটা JSON ফাইল হিসেবে ফোনে সেভ হবে</small></span></button>' +
       '<button class="set-item" id="setRestore"><span class="si-ic">' + ic('upload', 18) + '</span><span><b>ব্যাকআপ রিস্টোর করুন</b><small>আগের সংরক্ষিত JSON ফাইল থেকে ডেটা আনুন</small></span></button>' +
       '<button class="set-item" id="setCsv"><span class="si-ic">' + ic('file', 18) + '</span><span><b>Excel / CSV ডাউনলোড</b><small>সব লেনদেনের স্প্রেডশীট ফাইল</small></span></button>' +
       (navigator.share ? '<button class="set-item" id="setShare"><span class="si-ic">' + ic('share', 18) + '</span><span><b>মাসিক রিপোর্ট শেয়ার</b><small>হোয়াটসঅ্যাপ বা মেসেঞ্জারে পাঠান</small></span></button>' : '') +
       '<button class="set-item" id="setCopy"><span class="si-ic">' + ic('copy', 18) + '</span><span><b>ক্লিপবোর্ডে কপি করুন</b><small>সব ডেটা JSON কোড হিসেবে কপি হবে</small></span></button>' +
-      (S.entries.some(function (e) { return e.demo; }) ? '<button class="set-item" id="setDemo"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>ডেমো ডেটা মুছুন</b><small>নিজের হিসাব শুরু করুন</small></span></button>' : '') +
       '<button class="set-item danger" id="setReset"><span class="si-ic">' + ic('trash', 18) + '</span><span><b>সব এন্ট্রি মুছে ফেলুন</b><small>সার্ভিসগুলো থাকবে, বাকি সব মুছবে</small></span></button>' +
       '</div>' +
       '<input type="file" id="restoreInput" accept=".json,application/json" style="display:none">',
       function (root) {
         $('#profName', root).onchange = function (e) { Store.setProfile({ name: e.target.value.trim() }); };
         $('#setCloud', root).onclick = function () { closeModal(); setTimeout(openCloudSettings, 200); };
+        $('#setUpdate', root).onclick = function () {
+          if (!window.AppUpdater) { toast('আপডেটার পাওয়া যায়নি'); return; }
+          var sub = $('#setUpdateSub', root);
+          var st = window.AppUpdater.getState();
+          if (st.status === 'ready') {
+            toast('আপডেট ইনস্টল হচ্ছে…');
+            window.AppUpdater.apply();
+            return;
+          }
+          if (sub) sub.textContent = 'আপডেট চেক করা হচ্ছে…';
+          window.AppUpdater.check({ silent: false }).then(function (res) {
+            if (res && res.ready) {
+              if (sub) sub.textContent = 'v' + res.version + ' রেডি! এখনই ইনস্টল হচ্ছে…';
+              toast('নতুন আপডেট v' + res.version + ' ইনস্টল হচ্ছে!');
+              setTimeout(function () { window.AppUpdater.apply(); }, 600);
+            } else if (res && res.upToDate) {
+              if (sub) sub.textContent = 'সবচেয়ে নতুন ভার্সন চলছে';
+              toast('আপনার অ্যাপটি একদম আপ-টু-ডেট!');
+            } else if (res && res.error) {
+              if (sub) sub.textContent = res.error;
+              toast(res.error);
+            }
+          });
+        };
         $('#currChips', root).onclick = function (e) {
           var b = e.target.closest('[data-c]'); if (!b) return;
           var nextC = b.dataset.c;
@@ -1212,8 +1235,6 @@
           if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { toast('ব্যাকআপ কপি হয়েছে'); }, function () { toast('কপি করা যায়নি'); });
           else toast('কপি করা যায়নি');
         };
-        var d = $('#setDemo', root);
-        if (d) d.onclick = function () { Store.clearDemo().then(function () { closeModal(); toast('ডেমো ডেটা মুছে ফেলা হয়েছে'); }); };
         var r = $('#setReset', root), armed = false;
         r.onclick = function () {
           if (!armed) { armed = true; vib(15); r.classList.add('armed'); $('b', r).textContent = 'নিশ্চিত? আবার চাপুন'; return; }
@@ -1259,7 +1280,23 @@
   $('#newServiceBtn').addEventListener('click', function () { openServiceForm(); });
   $('#newClientBtn').addEventListener('click', openClientForm);
   document.addEventListener('click', function (e) { if (e.target.closest('#addPersonTile')) openClientForm(); });
-  $('#clearDemoBtn').addEventListener('click', function () { Store.clearDemo().then(function () { toast('ডেমো ডেটা মুছে ফেলা হয়েছে, এবার নিজের হিসাব লিখুন'); }); });
+  if ($('#updateApplyBtn')) {
+    $('#updateApplyBtn').addEventListener('click', function () {
+      vib(10);
+      $('#updateApplyBtn').textContent = 'ইনস্টল হচ্ছে…';
+      if (window.AppUpdater) window.AppUpdater.apply();
+    });
+  }
+  if (window.AppUpdater) {
+    window.AppUpdater.subscribe(function (st) {
+      var bar = $('#updateBar');
+      if (!bar) return;
+      if (st.status === 'ready') {
+        $('#updateText').textContent = 'নতুন আপডেট (v' + st.remote + ') রেডি!';
+        bar.hidden = false;
+      }
+    });
+  }
 
   $('#txChips').addEventListener('click', function (e) {
     var b = e.target.closest('[data-f]'); if (!b) return;

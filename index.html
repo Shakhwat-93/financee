@@ -59,10 +59,6 @@
 
       <div class="list-sheet" data-st>
         <div class="grab"></div>
-        <div class="demo-bar" id="demoBar" hidden>
-          <span>ডেমো ডেটা দেখানো হচ্ছে</span>
-          <button id="clearDemoBtn">মুছে শুরু করুন</button>
-        </div>
         <div class="list-head">
           <button class="icon-btn-l" id="filterBtn" aria-label="ফিল্টার"></button>
           <span>লেনদেন</span>
@@ -216,10 +212,17 @@
     <div class="s-hint">যেকোনো জায়গায় চাপ দিয়ে বন্ধ করুন</div>
   </div>
 
+  <div class="update-bar" id="updateBar" hidden>
+    <span id="updateText">নতুন আপডেট রেডি!</span>
+    <button id="updateApplyBtn">আপডেট করুন</button>
+  </div>
+
   <div class="toast" id="toast" hidden></div>
 </div>
 <!--/APP-->
+<script src="js/version.js"></script>
 <script src="js/store.js"></script>
+<script src="js/updater.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

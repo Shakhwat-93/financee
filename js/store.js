@@ -183,7 +183,7 @@
         if (remote && Array.isArray(remote.entries)) {
           state = {
             version: remote.version || 1,
-            demo: !!remote.demo,
+            demo: false,
             profile: remote.profile || { name: '' },
             settings: remote.settings || { currency: 'BDT' },
             services: Array.isArray(remote.services) && remote.services.length ? remote.services : state.services,
@@ -191,8 +191,10 @@
             expenseCats: EXPENSE_CATS,
             entries: remote.entries
           };
+          var cleaned = stripDemo(state);
           save();
           emit();
+          if (cleaned) schedulePush();
         }
         cloud.lastSync = Date.now();
         saveCloud();
@@ -219,62 +221,35 @@
     });
   }
 
-  /* ---------- প্রথমবার খুললে দেখানোর জন্য ডেমো ডেটা ---------- */
+  /* ---------- নতুন শুরু করার জন্য পরিষ্কার ডিফল্ট স্টেট (কোনো ডেমো ডেটা নেই) ---------- */
   function seed() {
-    var services = [
-      { id: 's_video', name: 'ভিডিও এডিটিং', color: SERVICE_COLORS[0], active: true },
-      { id: 's_web', name: 'ওয়েবসাইট তৈরি', color: SERVICE_COLORS[1], active: true },
-      { id: 's_design', name: 'গ্রাফিক ডিজাইন', color: SERVICE_COLORS[2], active: true }
-    ];
-    var names = ['রহিম ট্রেডার্স', 'নুসরাত ফ্যাশন', 'করিম ভাই', 'Studio Nine', 'তানিয়া', 'আরিফ হোসেন', 'Green Leaf'];
-    var clients = names.map(function (n, i) {
-      return { id: 'c_demo_' + i, name: n, color: CLIENT_COLORS[i % CLIENT_COLORS.length], demo: true };
-    });
-
-    // ছোট একটা ডিটারমিনিস্টিক র‍্যান্ডম, যাতে প্রতিবার একই ডেমো আসে
-    var r = 7;
-    var rnd = function () { r = (r * 9301 + 49297) % 233280; return r / 233280; };
-    var pick = function (arr) { return arr[Math.floor(rnd() * arr.length)]; };
-
-    var entries = [];
-    var today = new Date();
-    for (var back = 3; back >= 0; back--) {
-      var y = today.getFullYear(), m = today.getMonth() - back;
-      while (m < 0) { m += 12; y--; }
-      var days = new Date(y, m + 1, 0).getDate();
-      var lastDay = back === 0 ? today.getDate() : days;
-      var add = function (e) {
-        var d = Math.max(1, Math.min(lastDay, e.day));
-        entries.push({
-          id: uid() + entries.length, type: e.type, amount: e.amount,
-          date: y + '-' + pad(m + 1) + '-' + pad(d),
-          svc: e.svc || null, client: e.client || null, cat: e.cat || null, forSvc: e.forSvc || null,
-          note: e.note || '', createdAt: Date.now() - back * 1e9 + d * 1e6, demo: true
-        });
-      };
-      var nInc = back === 0 ? 4 : 6 + Math.floor(rnd() * 3);
-      for (var i = 0; i < nInc; i++) {
-        var s = pick(services);
-        var base = s.id === 's_web' ? 120 + Math.round(rnd() * 280) : s.id === 's_video' ? 25 + Math.round(rnd() * 90) : 20 + Math.round(rnd() * 60);
-        add({ type: 'income', amount: base, svc: s.id, client: pick(clients).id, day: 1 + Math.floor(rnd() * lastDay), note: rnd() > 0.7 ? 'অ্যাডভান্স' : '' });
-      }
-      var nAds = back === 0 ? 3 : 5;
-      for (var j = 0; j < nAds; j++) {
-        add({ type: 'expense', amount: 10 + Math.round(rnd() * 25), cat: rnd() > 0.25 ? 'fb' : 'google', forSvc: pick(services).id, day: 1 + Math.floor(rnd() * lastDay) });
-      }
-      add({ type: 'expense', amount: 12, cat: 'tools', day: 3, note: 'সাবস্ক্রিপশন' });
-    }
-
     return {
       version: 1,
-      demo: true,
+      demo: false,
       profile: { name: '' },
       settings: { currency: 'BDT' },
-      services: services,
-      clients: clients,
+      services: [
+        { id: 's_video', name: 'ভিডিও এডিটিং', color: SERVICE_COLORS[0], active: true },
+        { id: 's_web', name: 'ওয়েবসাইট তৈরি', color: SERVICE_COLORS[1], active: true },
+        { id: 's_design', name: 'গ্রাফিক ডিজাইন', color: SERVICE_COLORS[2], active: true }
+      ],
+      clients: [],
       expenseCats: EXPENSE_CATS,
-      entries: entries
+      entries: []
     };
+  }
+
+  function stripDemo(st) {
+    if (!st) return false;
+    var hadDemo = !!st.demo ||
+      (Array.isArray(st.entries) && st.entries.some(function (e) { return e.demo; })) ||
+      (Array.isArray(st.clients) && st.clients.some(function (c) { return c.demo; }));
+    if (!hadDemo) return false;
+    st.entries = (st.entries || []).filter(function (e) { return !e.demo; });
+    var used = new Set(st.entries.map(function (e) { return e.client; }));
+    st.clients = (st.clients || []).filter(function (c) { return !c.demo || used.has(c.id); });
+    st.demo = false;
+    return true;
   }
 
   function pickEntryFields(d) {
@@ -298,6 +273,7 @@
     init: function () {
       state = load();
       if (!state || !state.entries) { state = seed(); save(); }
+      if (stripDemo(state)) { save(); }
       if (!state.expenseCats) state.expenseCats = EXPENSE_CATS;
       if (!state.profile) state.profile = { name: '' };
       if (!state.settings) state.settings = { currency: 'BDT' };

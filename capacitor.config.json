@@ -13,6 +13,10 @@
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#0A0C0C"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "resetWhenUpdate": true
     }
   }
 }
