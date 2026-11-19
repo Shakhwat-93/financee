@@ -28,10 +28,13 @@
       <div class="home-top">
         <header class="topbar" data-st>
           <button class="avatar-btn" id="avatarBtn" aria-label="সেটিংস"></button>
-          <div class="month-pill">
-            <button data-mprev aria-label="আগের মাস"></button>
-            <span class="month-lbl"></span>
-            <button data-mnext aria-label="পরের মাস"></button>
+          <div class="topbar-r">
+            <button class="icon-btn-d" id="privacyBtn" aria-label="ব্যালেন্স লুকান"></button>
+            <div class="month-pill">
+              <button data-mprev aria-label="আগের মাস"></button>
+              <span class="month-lbl"></span>
+              <button data-mnext aria-label="পরের মাস"></button>
+            </div>
           </div>
         </header>
 
@@ -219,6 +222,20 @@
       <div class="s-text" id="sText"></div>
     </div>
     <div class="s-hint" data-i18n="tapToClose">যেকোনো জায়গায় চাপ দিয়ে বন্ধ করুন</div>
+  </div>
+
+  <div class="pin-lock" id="pinLock" hidden>
+    <div class="pin-in">
+      <img src="icons/logo.svg" alt="Logo" class="pin-logo">
+      <div class="pin-title" id="pinTitle">পিন দিন</div>
+      <div class="pin-dots" id="pinDots"><i></i><i></i><i></i><i></i></div>
+      <div class="pin-keys" id="pinKeys">
+        <button data-pk="1">1</button><button data-pk="2">2</button><button data-pk="3">3</button>
+        <button data-pk="4">4</button><button data-pk="5">5</button><button data-pk="6">6</button>
+        <button data-pk="7">7</button><button data-pk="8">8</button><button data-pk="9">9</button>
+        <span></span><button data-pk="0">0</button><button data-pk="del" id="pinDel">⌫</button>
+      </div>
+    </div>
   </div>
 
   <div class="update-bar" id="updateBar" hidden>

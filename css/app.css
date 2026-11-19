@@ -119,6 +119,27 @@ svg { display: block; }
     var(--app-bg);
 }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.topbar-r { display: flex; align-items: center; gap: 8px; }
+.icon-btn-d {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--d2); border: 1px solid var(--line-d); color: var(--mut-d);
+  transition: transform .15s var(--ease), color .2s, background .2s;
+}
+.icon-btn-d:active { transform: scale(.92); background: var(--d3); }
+body.privacy-on .icon-btn-d { color: var(--pos-d); border-color: rgba(61, 220, 132, .35); }
+body.privacy-on .big-amount,
+body.privacy-on .hero-sub b,
+body.privacy-on .spend-val,
+body.privacy-on .tx-amt,
+body.privacy-on .svc-amount,
+body.privacy-on .v-amt,
+body.privacy-on .kpi .v,
+body.privacy-on .d-amt {
+  filter: blur(9px);
+  user-select: none;
+  transition: filter .22s var(--ease);
+}
 .avatar-btn {
   position: relative;
   width: 40px; height: 40px; border-radius: 50%;
@@ -644,6 +665,35 @@ svg { display: block; }
 @keyframes up { to { opacity: 1; transform: none; } }
 .s-hint { position: absolute; left: 0; right: 0; bottom: calc(var(--sab) + 34px); text-align: center; color: rgba(255, 255, 255, .7); font-size: 12.5px; opacity: 0; }
 .success.show .s-hint { animation: up .5s .9s var(--ease) forwards; }
+
+/* ---------- PIN Lock ---------- */
+.pin-lock {
+  position: absolute; inset: 0; z-index: 90;
+  background: rgba(10, 12, 12, .97);
+  backdrop-filter: blur(18px);
+  display: grid; place-items: center;
+  padding: calc(var(--sat) + 24px) 24px calc(var(--sab) + 24px);
+}
+.pin-in { width: 100%; max-width: 280px; text-align: center; }
+.pin-logo { width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 14px; display: block; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.pin-title { font-size: 18px; font-weight: 800; color: var(--tx-d); letter-spacing: -.01em; }
+.pin-dots { display: flex; justify-content: center; gap: 16px; margin: 22px 0 32px; }
+.pin-dots i {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .28);
+  transition: transform .18s var(--ease), background .18s, border-color .18s;
+}
+.pin-dots i.on { background: var(--pos-d); border-color: var(--pos-d); transform: scale(1.15); }
+.pin-dots.shake { animation: shake .4s; }
+.pin-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.pin-keys button {
+  height: 64px; border-radius: 50%; width: 64px; margin: 0 auto;
+  background: var(--d2); border: 1px solid var(--line-d);
+  color: var(--tx-d); font-size: 24px; font-weight: 700;
+  display: grid; place-items: center;
+  transition: transform .12s var(--ease), background .15s;
+}
+.pin-keys button:active { transform: scale(.91); background: var(--d3); }
 
 /* ---------- OTA update bar ---------- */
 .update-bar {

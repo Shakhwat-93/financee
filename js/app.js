@@ -81,6 +81,9 @@
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
     share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
     cloud: '<path d="M6.5 19h11a4 4 0 0 0 .8-7.9A5.5 5.5 0 0 0 7.7 9.4 4.2 4.2 0 0 0 6.5 19z"/>',
+    eye: '<path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    eyeOff: '<path d="M17.9 17.9A10.6 10.6 0 0 1 12 18.5C5.8 18.5 2 12 2 12a18 18 0 0 1 5-5.3M9.9 5.3A10 10 0 0 1 12 5.5c6.2 0 10 6.5 10 6.5a18 18 0 0 1-2.5 3.4M3 3l18 18"/>',
+    lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
     copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>',
     refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4.5v4h-4"/>',
     user: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1-3.7 4-5.8 7.5-5.8s6.5 2.1 7.5 5.8"/>',
@@ -1394,6 +1397,85 @@
       });
   }
 
+  var PIN_KEY = 'hisab.pin';
+  var PRIV_KEY = 'hisab.privacy';
+
+  function paintPrivacy() {
+    var on = document.body.classList.contains('privacy-on');
+    var btn = $('#privacyBtn');
+    if (btn) btn.innerHTML = ic(on ? 'eyeOff' : 'eye', 17, 2);
+  }
+  function togglePrivacy() {
+    vib(6);
+    var on = document.body.classList.toggle('privacy-on');
+    try { localStorage.setItem(PRIV_KEY, on ? '1' : '0'); } catch (e) { /* */ }
+    paintPrivacy();
+  }
+  function initPrivacy() {
+    try { if (localStorage.getItem(PRIV_KEY) === '1') document.body.classList.add('privacy-on'); } catch (e) { /* */ }
+    paintPrivacy();
+  }
+
+  function showPinLock(expectedPin, onUnlock) {
+    var box = $('#pinLock'); if (!box) return;
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var entered = '';
+    $('#pinTitle').textContent = isEn ? 'Enter 4-Digit PIN' : '৪-ডিজিটের পিন দিন';
+    var dots = $$('#pinDots i');
+    var paintDots = function () { dots.forEach(function (d, i) { d.classList.toggle('on', i < entered.length); }); };
+    paintDots();
+    box.hidden = false;
+    $('#pinKeys').onclick = function (e) {
+      var b = e.target.closest('[data-pk]'); if (!b) return;
+      var k = b.dataset.pk;
+      vib(6);
+      if (k === 'del') { entered = entered.slice(0, -1); paintDots(); return; }
+      if (entered.length >= 4) return;
+      entered += k;
+      paintDots();
+      if (entered.length === 4) {
+        if (entered === expectedPin) {
+          vib([10, 30, 10]);
+          box.hidden = true;
+          if (onUnlock) onUnlock();
+        } else {
+          vib(35);
+          var dl = $('#pinDots');
+          dl.classList.remove('shake'); void dl.offsetWidth; dl.classList.add('shake');
+          setTimeout(function () { entered = ''; paintDots(); }, 350);
+        }
+      }
+    };
+  }
+
+  function openPinSettings() {
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var curPin = '';
+    try { curPin = localStorage.getItem(PIN_KEY) || ''; } catch (e) { /* */ }
+    openModal(
+      '<h3 class="m-title">' + (isEn ? 'App PIN Lock' : 'অ্যাপ পিন লক') + '</h3>' +
+      '<p class="m-sub">' + (isEn ? 'Protect your financial data with a 4-digit passcode.' : '৪-ডিজিটের পিন দিয়ে আপনার হিসাব সুরক্ষিত রাখুন।') + '</p>' +
+      '<div class="p-sec"><label for="inpPin">' + (isEn ? 'New 4-Digit PIN' : 'নতুন ৪-ডিজিটের পিন') + '</label>' +
+      '<input class="field" id="inpPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>' +
+      '<div style="margin-top:18px"><button class="btn-dark" id="savePinBtn">' + (curPin ? (isEn ? 'Update PIN' : 'পিন আপডেট করুন') : (isEn ? 'Enable PIN Lock' : 'পিন লক চালু করুন')) + '</button></div>' +
+      (curPin ? '<div style="margin-top:10px"><button class="btn-danger" id="remPinBtn">' + (isEn ? 'Disable PIN Lock' : 'পিন লক বন্ধ করুন') + '</button></div>' : ''),
+      function (root) {
+        $('#savePinBtn', root).onclick = function () {
+          var v = $('#inpPin', root).value.replace(/[^0-9]/g, '');
+          if (v.length !== 4) { toast(isEn ? 'Enter exactly 4 digits' : 'ঠিক ৪টি সংখ্যা দিন'); return; }
+          try { localStorage.setItem(PIN_KEY, v); } catch (e) { /* */ }
+          closeModal();
+          toast(isEn ? 'PIN Lock enabled!' : 'পিন লক চালু হয়েছে!');
+        };
+        var rem = $('#remPinBtn', root);
+        if (rem) rem.onclick = function () {
+          try { localStorage.removeItem(PIN_KEY); } catch (e) { /* */ }
+          closeModal();
+          toast(isEn ? 'PIN Lock disabled' : 'পিন লক বন্ধ করা হয়েছে');
+        };
+      });
+  }
+
   function openGoalSettings() {
     var isEn = window.I18n && window.I18n.lang() === 'en';
     var goal = (S.settings && S.settings.monthlyGoal) || '';
@@ -1445,6 +1527,7 @@
       '<div class="set-list">' +
       '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>' + esc(T('googleSheetDb')) + '</b><small>' + esc(cloudSub) + '</small></span></button>' +
       '<button class="set-item" id="setGoals"><span class="si-ic">' + ic('spark', 18) + '</span><span><b>' + (isEn ? 'Monthly Goals & Budget' : 'মাসিক লক্ষ্য ও বাজেট') + '</b><small>' + (S.settings && S.settings.monthlyGoal ? fmt$(S.settings.monthlyGoal) : (isEn ? 'Set income target & ad budget' : 'মাসিক আয়ের লক্ষ্য ও অ্যাড লিমিট সেট করুন')) + '</small></span></button>' +
+      '<button class="set-item" id="setPin"><span class="si-ic">' + ic('lock', 18) + '</span><span><b>' + (isEn ? 'App PIN Lock' : 'অ্যাপ পিন লক') + '</b><small>' + ((function(){ try { return localStorage.getItem(PIN_KEY) ? (isEn ? 'Enabled (4-digit PIN)' : 'চালু আছে (৪-ডিজিট পিন)') : (isEn ? 'Protect app with passcode' : 'পিন দিয়ে অ্যাপ লক করুন'); } catch(e){ return ''; } })()) + '</small></span></button>' +
       '<button class="set-item" id="setUpdate"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>' + esc(T('appUpdate', { v: window.APP_VERSION || '1.0.0' })) + '</b><small id="setUpdateSub">' + esc(T('checkInstallUpdate')) + '</small></span></button>' +
       '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>' + esc(T('installApp')) + '</b><small>' + installSub + '</small></span></button>' +
       '<button class="set-item" id="setBackup"><span class="si-ic">' + ic('file', 18) + '</span><span><b>' + esc(T('backupDownload')) + '</b><small>' + esc(T('backupDownloadSub')) + '</small></span></button>' +
@@ -1471,6 +1554,7 @@
         };
         $('#setCloud', root).onclick = function () { closeModal(); setTimeout(openCloudSettings, 200); };
         $('#setGoals', root).onclick = function () { closeModal(); setTimeout(openGoalSettings, 200); };
+        $('#setPin', root).onclick = function () { closeModal(); setTimeout(openPinSettings, 200); };
         $('#setUpdate', root).onclick = function () {
           if (!window.AppUpdater) { toast('আপডেটার পাওয়া যায়নি'); return; }
           var sub = $('#setUpdateSub', root);
@@ -1597,6 +1681,7 @@
   });
 
   $('#avatarBtn').addEventListener('click', openSettings);
+  if ($('#privacyBtn')) $('#privacyBtn').addEventListener('click', togglePrivacy);
   if ($('#goalCard')) $('#goalCard').addEventListener('click', openGoalSettings);
   $('#newServiceBtn').addEventListener('click', function () { openServiceForm(); });
   $('#newClientBtn').addEventListener('click', openClientForm);
@@ -1685,6 +1770,11 @@
     if (window.I18n) window.I18n.applyDOM();
     paintIcons();
     paintAvatar();
+    initPrivacy();
+    try {
+      var savedPin = localStorage.getItem(PIN_KEY);
+      if (savedPin && savedPin.length === 4) showPinLock(savedPin);
+    } catch (e) { /* */ }
     paintSyncBadge(Store.getSyncStatus());
     Store.onSyncStatus(paintSyncBadge);
     renderTab('home', true);
