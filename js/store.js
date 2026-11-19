@@ -39,6 +39,8 @@
 
   var KEY = 'hisab.v1';
   var CLOUD_KEY = 'hisab.gsheet.v1';
+  var DEFAULT_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbysRtOYS-LPZWJ7_uBAh4HlfeuZ5iOHIT7A3uG_FL-uYs-SA0G4LPJIMx0FTvCULOXueQ/exec';
+  var DEFAULT_CLOUD_SECRET = 'hisab123';
   var listeners = new Set();
   var syncListeners = new Set();
   var state = null;
@@ -82,9 +84,13 @@
   function loadCloud() {
     try {
       var raw = localStorage.getItem(CLOUD_KEY);
-      if (raw) return Object.assign({ url: '', secret: 'hisab123', lastSync: 0, pendingPush: false }, JSON.parse(raw));
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed.disconnected) return { url: '', secret: DEFAULT_CLOUD_SECRET, lastSync: 0, pendingPush: false, disconnected: true };
+        return Object.assign({ url: DEFAULT_CLOUD_URL, secret: DEFAULT_CLOUD_SECRET, lastSync: 0, pendingPush: false }, parsed);
+      }
     } catch (e) { /* ignore */ }
-    return { url: '', secret: 'hisab123', lastSync: 0, pendingPush: false };
+    return { url: DEFAULT_CLOUD_URL, secret: DEFAULT_CLOUD_SECRET, lastSync: 0, pendingPush: false };
   }
   function saveCloud() {
     try { localStorage.setItem(CLOUD_KEY, JSON.stringify(cloud)); } catch (e) { /* ignore */ }
@@ -309,6 +315,7 @@
       cloud.url = String((cfg && cfg.url) || '').trim();
       cloud.secret = String((cfg && cfg.secret) != null ? cfg.secret : '').trim();
       cloud.pendingPush = false;
+      cloud.disconnected = !cloud.url;
       saveCloud();
       if (!cloud.url) {
         emitSync('disconnected', '');
@@ -319,7 +326,7 @@
 
     disconnectCloud: function () {
       clearTimeout(pushTimer);
-      cloud = { url: '', secret: 'hisab123', lastSync: 0, pendingPush: false };
+      cloud = { url: '', secret: DEFAULT_CLOUD_SECRET, lastSync: 0, pendingPush: false, disconnected: true };
       saveCloud();
       emitSync('disconnected', '');
       return Promise.resolve();
