@@ -41,8 +41,8 @@
             <div class="big-amount" id="netAmount" data-st></div>
             <div class="hero-sub" id="heroSub" data-st></div>
             <div class="pill-row" data-st>
-              <button class="pill pill-light" data-add="income"><i></i>আয়</button>
-              <button class="pill pill-dark" data-add="expense">খরচ</button>
+              <button class="pill pill-light" data-add="income"><i></i><span data-i18n="income">আয়</span></button>
+              <button class="pill pill-dark" data-add="expense" data-i18n="expense">খরচ</button>
             </div>
           </div>
           <button class="card-stack" id="cardStack" data-tab="services" aria-label="সার্ভিস দেখুন" data-st></button>
@@ -50,7 +50,7 @@
 
         <button class="spend-card" id="spendCard" data-tab="stats" data-st>
           <span>
-            <span class="spend-lbl" id="spendLbl">খরচ</span>
+            <span class="spend-lbl" id="spendLbl" data-i18n="expense">খরচ</span>
             <span class="spend-val" id="spendVal">৳0</span>
           </span>
           <span class="bubbles" id="spendBubbles"></span>
@@ -61,16 +61,16 @@
         <div class="grab"></div>
         <div class="list-head">
           <button class="icon-btn-l" id="filterBtn" aria-label="ফিল্টার"></button>
-          <span>লেনদেন</span>
+          <span data-i18n="transactions">লেনদেন</span>
           <button class="icon-btn-l" id="searchBtn" aria-label="খুঁজুন"></button>
         </div>
         <div class="search-wrap" id="searchWrap">
-          <input id="searchInput" type="search" placeholder="ক্লায়েন্ট, সার্ভিস বা নোট খুঁজুন" autocomplete="off">
+          <input id="searchInput" type="search" placeholder="ক্লায়েন্ট, সার্ভিস বা নোট খুঁজুন" data-i18n-ph="searchPlaceholder" autocomplete="off">
         </div>
         <div class="chips" id="txChips">
-          <button class="chip on" data-f="all">সব</button>
-          <button class="chip" data-f="income">আয়</button>
-          <button class="chip" data-f="expense">খরচ</button>
+          <button class="chip on" data-f="all" data-i18n="all">সব</button>
+          <button class="chip" data-f="income" data-i18n="income">আয়</button>
+          <button class="chip" data-f="expense" data-i18n="expense">খরচ</button>
         </div>
         <div id="txList"></div>
       </div>
@@ -80,21 +80,21 @@
     <section class="screen" id="s-services" aria-label="সার্ভিস" hidden>
       <header class="page-head" data-st>
         <div>
-          <h1>সার্ভিস</h1>
+          <h1 data-i18n="services">সার্ভিস</h1>
           <div class="page-sub month-lbl"></div>
         </div>
-        <button class="head-btn" id="newServiceBtn">নতুন সার্ভিস</button>
+        <button class="head-btn" id="newServiceBtn" data-i18n="newService">নতুন সার্ভিস</button>
       </header>
       <div class="svc-list" id="svcList"></div>
-      <p class="foot-note" data-st>কার্ডে দেখানো অ্যাড খরচ হলো যেসব খরচ আপনি ঐ সার্ভিসের নামে ট্যাগ করেছেন। সুইচ বন্ধ করলে সার্ভিসটা এন্ট্রির তালিকায় আর আসবে না।</p>
+      <p class="foot-note" data-st data-i18n="serviceFootNote">কার্ডে দেখানো অ্যাড খরচ হলো যেসব খরচ আপনি ঐ সার্ভিসের নামে ট্যাগ করেছেন। সুইচ বন্ধ করলে সার্ভিসটা এন্ট্রির তালিকায় আর আসবে না।</p>
     </section>
 
     <!-- ============ ক্লায়েন্ট ============ -->
     <section class="screen screen-clients" id="s-clients" aria-label="ক্লায়েন্ট" hidden>
       <div class="clients-top">
         <header class="page-head" data-st>
-          <h1>ক্লায়েন্ট</h1>
-          <button class="head-btn" id="newClientBtn">যোগ করুন</button>
+          <h1 data-i18n="clients">ক্লায়েন্ট</h1>
+          <button class="head-btn" id="newClientBtn" data-i18n="addClient">যোগ করুন</button>
         </header>
         <div class="people" id="peopleGrid"></div>
       </div>
@@ -102,13 +102,13 @@
         <div class="grab"></div>
         <div class="list-head list-head-left">
           <div class="chips chips-tight" id="clientChips">
-            <button class="chip on" data-cf="all">সব</button>
-            <button class="chip" data-cf="month">এই মাসে</button>
+            <button class="chip on" data-cf="all" data-i18n="all">সব</button>
+            <button class="chip" data-cf="month" data-i18n="thisMonth">এই মাসে</button>
           </div>
           <button class="icon-btn-l" id="clientSearchBtn" aria-label="খুঁজুন"></button>
         </div>
         <div class="search-wrap" id="clientSearchWrap">
-          <input id="clientSearch" type="search" placeholder="ক্লায়েন্টের নাম খুঁজুন" autocomplete="off">
+          <input id="clientSearch" type="search" placeholder="ক্লায়েন্টের নাম খুঁজুন" data-i18n-ph="clientSearchPlaceholder" autocomplete="off">
         </div>
         <div id="clientList"></div>
       </div>
@@ -117,7 +117,7 @@
     <!-- ============ রিপোর্ট ============ -->
     <section class="screen" id="s-stats" aria-label="রিপোর্ট" hidden>
       <header class="page-head" data-st>
-        <h1>রিপোর্ট</h1>
+        <h1 data-i18n="stats">রিপোর্ট</h1>
         <div class="month-pill">
           <button data-mprev aria-label="আগের মাস"></button>
           <span class="month-lbl"></span>
@@ -128,18 +128,18 @@
       <div class="kpis" id="kpis"></div>
       <section class="dark-card" data-st>
         <div class="dc-head">
-          <h2>৬ মাসের ট্রেন্ড</h2>
-          <div class="legend"><span><i style="background:var(--inc)"></i>আয়</span><span><i style="background:var(--exp)"></i>খরচ</span></div>
+          <h2 data-i18n="trend6m">৬ মাসের ট্রেন্ড</h2>
+          <div class="legend"><span><i style="background:var(--inc)"></i><span data-i18n="income">আয়</span></span><span><i style="background:var(--exp)"></i><span data-i18n="expense">খরচ</span></span></div>
         </div>
         <div class="trend" id="trend"></div>
         <div class="trend-read" id="trendRead"></div>
       </section>
       <section class="dark-card" data-st>
-        <div class="dc-head"><h2>সার্ভিস অনুযায়ী</h2><span class="dc-sub">আয় · অ্যাড খরচ · নেট</span></div>
+        <div class="dc-head"><h2 data-i18n="byService">সার্ভিস অনুযায়ী</h2><span class="dc-sub" data-i18n="byServiceSub">আয় · অ্যাড খরচ · নেট</span></div>
         <div id="svcBreak"></div>
       </section>
       <section class="dark-card" data-st>
-        <div class="dc-head"><h2>খরচ কোথায় গেল</h2></div>
+        <div class="dc-head"><h2 data-i18n="whereSpent">খরচ কোথায় গেল</h2></div>
         <div id="expBreak"></div>
       </section>
     </section>
@@ -161,8 +161,8 @@
     <div class="drag-zone">
       <div class="grab"></div>
       <div class="seg" id="typeSeg">
-        <button data-type="income" class="on">আয়</button>
-        <button data-type="expense">খরচ</button>
+        <button data-type="income" class="on" data-i18n="income">আয়</button>
+        <button data-type="expense" data-i18n="expense">খরচ</button>
       </div>
       <button class="ctx" id="ctxBtn"><span id="ctxText"></span><i id="ctxChev"></i></button>
     </div>
@@ -174,7 +174,7 @@
       <div class="avail" id="availLine"></div>
       <button class="swipe-hint" id="swipeHint" hidden aria-label="সেভ করুন">
         <i id="handIc"></i>
-        <span>ডানে সোয়াইপ করে সেভ করুন</span>
+        <span data-i18n="swipeToSave">ডানে সোয়াইপ করে সেভ করুন</span>
       </button>
     </div>
 
@@ -191,7 +191,7 @@
     <!-- বিস্তারিত বাছাই প্যানেল -->
     <div class="ctx-panel" id="ctxPanel" aria-hidden="true">
       <div class="ctx-panel-in" id="ctxPanelIn"></div>
-      <div class="ctx-foot"><button class="btn-dark" id="ctxDone">ঠিক আছে</button></div>
+      <div class="ctx-foot"><button class="btn-dark" id="ctxDone" data-i18n="ok">ঠিক আছে</button></div>
     </div>
   </section>
 
@@ -209,12 +209,12 @@
       <div class="s-amount" id="sAmount"></div>
       <div class="s-text" id="sText"></div>
     </div>
-    <div class="s-hint">যেকোনো জায়গায় চাপ দিয়ে বন্ধ করুন</div>
+    <div class="s-hint" data-i18n="tapToClose">যেকোনো জায়গায় চাপ দিয়ে বন্ধ করুন</div>
   </div>
 
   <div class="update-bar" id="updateBar" hidden>
     <span id="updateText">নতুন আপডেট রেডি!</span>
-    <button id="updateApplyBtn">আপডেট করুন</button>
+    <button id="updateApplyBtn" data-i18n="updateNow">আপডেট করুন</button>
   </div>
 
   <div class="toast" id="toast" hidden></div>
@@ -222,6 +222,7 @@
 <!--/APP-->
 <script src="js/version.js"></script>
 <script src="js/store.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/updater.js"></script>
 <script src="js/app.js"></script>
 </body>

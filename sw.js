@@ -1,11 +1,12 @@
 /* হিসাব খাতা — অফলাইন সার্ভিস ওয়ার্কার */
-const VERSION = 'hisab-v6';
+const VERSION = 'hisab-v7';
 const SHELL = [
   './',
   'index.html',
   'css/app.css',
   'js/version.js',
   'js/store.js',
+  'js/i18n.js',
   'js/updater.js',
   'js/app.js',
   'manifest.webmanifest',

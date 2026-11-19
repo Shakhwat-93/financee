@@ -227,7 +227,7 @@
       version: 1,
       demo: false,
       profile: { name: '' },
-      settings: { currency: 'BDT' },
+      settings: { currency: 'BDT', lang: 'bn' },
       services: [
         { id: 's_video', name: 'ভিডিও এডিটিং', color: SERVICE_COLORS[0], active: true },
         { id: 's_web', name: 'ওয়েবসাইট তৈরি', color: SERVICE_COLORS[1], active: true },
@@ -276,7 +276,8 @@
       if (stripDemo(state)) { save(); }
       if (!state.expenseCats) state.expenseCats = EXPENSE_CATS;
       if (!state.profile) state.profile = { name: '' };
-      if (!state.settings) state.settings = { currency: 'BDT' };
+      if (!state.settings) state.settings = { currency: 'BDT', lang: 'bn' };
+      if (!state.settings.lang) state.settings.lang = 'bn';
       if (cloud.url) {
         setTimeout(function () { pullFromCloud().catch(function () { /* handled via syncStatus */ }); }, 150);
       }

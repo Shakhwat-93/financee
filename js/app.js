@@ -7,8 +7,9 @@
   'use strict';
 
   /* ---------------- ছোট হেল্পার ---------------- */
-  var BN_M = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
-  var BN_MS = ['জানু', 'ফেব্রু', 'মার্চ', 'এপ্রি', 'মে', 'জুন', 'জুলা', 'আগ', 'সেপ্টে', 'অক্টো', 'নভে', 'ডিসে'];
+  var T = function (k, v) { return window.I18n ? window.I18n.t(k, v) : k; };
+  var getMonths = function () { return window.I18n ? window.I18n.months() : ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর']; };
+  var getMonthsShort = function () { return window.I18n ? window.I18n.monthsShort() : ['জানু', 'ফেব্রু', 'মার্চ', 'এপ্রি', 'মে', 'জুন', 'জুলা', 'আগ', 'সেপ্টে', 'অক্টো', 'নভে', 'ডিসে']; };
   var OPS = '+−×÷';
   var TABS = ['home', 'services', 'clients', 'stats'];
 
@@ -34,13 +35,13 @@
     var a = Array.from(p[0] || '?')[0] || '?';
     return /[a-z]/i.test(a) && p[1] ? (a + Array.from(p[1])[0]).toUpperCase() : a.toUpperCase();
   };
-  var fmtDate = function (s) { var p = s.split('-').map(Number); return p[2] + ' ' + BN_M[p[1] - 1] + ' ' + p[0]; };
+  var fmtDate = function (s) { var p = s.split('-').map(Number); return p[2] + ' ' + getMonths()[p[1] - 1] + ' ' + p[0]; };
   var dayLabel = function (s) {
     var t = new Date(); var y = new Date(Date.now() - 864e5);
-    if (s === iso(t)) return 'আজ';
-    if (s === iso(y)) return 'গতকাল';
+    if (s === iso(t)) return T('today');
+    if (s === iso(y)) return T('yesterday');
     var p = s.split('-').map(Number);
-    return p[2] + ' ' + BN_M[p[1] - 1];
+    return p[2] + ' ' + getMonths()[p[1] - 1];
   };
   // সাদা লেখা লাগবে নাকি কালো — কার্ডের রঙ অনুযায়ী
   var inkFor = function (hex) {
@@ -201,7 +202,7 @@
   }
 
   function renderMonthLabels() {
-    var lbl = BN_M[ui.month.m] + ' ' + ui.month.y;
+    var lbl = getMonths()[ui.month.m] + ' ' + ui.month.y;
     $$('.month-lbl').forEach(function (el) { el.textContent = lbl; });
   }
 
@@ -211,13 +212,17 @@
     var isNow = ui.month.y === now.getFullYear() && ui.month.m === now.getMonth();
     var loss = t.net < 0;
 
-    $('#netLabel').innerHTML = (isNow ? 'এই মাসের ' : BN_M[ui.month.m] + ' মাসের ') + (loss ? 'নেট লস <span class="tag-loss">লসে আছেন</span>' : 'নেট লাভ');
+    var mName = getMonths()[ui.month.m];
+    var netText = isNow
+      ? (loss ? T('thisMonthNetLoss') + ' <span class="tag-loss">' + T('inLoss') + '</span>' : T('thisMonthNetProfit'))
+      : (loss ? T('monthNetLoss', { m: mName }) + ' <span class="tag-loss">' + T('inLoss') + '</span>' : T('monthNetProfit', { m: mName }));
+    $('#netLabel').innerHTML = netText;
     var na = $('#netAmount');
     na.classList.toggle('loss', loss);
     countTo(na, t.net, animate);
     $('#heroSub').innerHTML =
-      '<span><i style="background:var(--inc)"></i>আয় <b>' + fmt$(t.inc) + '</b></span>' +
-      '<span><i style="background:var(--exp)"></i>খরচ <b>' + fmt$(t.exp) + '</b></span>';
+      '<span><i style="background:var(--inc)"></i>' + T('income') + ' <b>' + fmt$(t.inc) + '</b></span>' +
+      '<span><i style="background:var(--exp)"></i>' + T('expense') + ' <b>' + fmt$(t.exp) + '</b></span>';
 
     // ডান পাশে উঁকি দেওয়া সার্ভিস কার্ড
     var cols = activeServices().slice(0, 3).map(function (s) { return s.color; });
@@ -227,7 +232,7 @@
     }).join('');
 
     // খরচ কার্ড
-    $('#spendLbl').textContent = t.ads > 0 ? 'খরচ · অ্যাডে ' + fmt$(t.ads) : 'এই মাসের খরচ';
+    $('#spendLbl').textContent = t.ads > 0 ? T('spendAds', { v: fmt$(t.ads) }) : T('thisMonthSpend');
     $('#spendVal').textContent = fmt$(t.exp);
     var byCat = {};
     list.forEach(function (e) { if (e.type === 'expense') byCat[e.cat] = (byCat[e.cat] || 0) + e.amount; });
@@ -360,18 +365,18 @@
     v.className = 'verdict' + (loss ? ' loss' : '');
     var margin = t.inc > 0 ? Math.round(t.net / t.inc * 100) : 0;
     v.innerHTML = list.length
-      ? '<span class="v-tag">' + (loss ? '▼ এই মাসে লসে আছেন' : '▲ এই মাসে লাভে আছেন') + '</span>' +
+      ? '<span class="v-tag">' + (loss ? '▼ ' + T('verdictLoss') : '▲ ' + T('verdictProfit')) + '</span>' +
         '<div class="v-amt">' + fmt$(t.net, true) + '</div>' +
-        '<p>' + (loss ? 'খরচ আয়ের চেয়ে ' + fmt$(-t.net) + ' বেশি। অ্যাড খরচ একবার দেখে নিন।' : 'আয়ের ' + margin + '% আপনার হাতে থাকছে।') + '</p>'
-      : '<span class="v-tag" style="color:var(--mut-d)">এই মাসে কোনো এন্ট্রি নেই</span><p>হোম থেকে আয় বা খরচ যোগ করলে এখানে হিসাব দেখাবে।</p>';
+        '<p>' + (loss ? T('verdictLossSub', { v: fmt$(-t.net) }) : T('verdictProfitSub', { p: margin })) + '</p>'
+      : '<span class="v-tag" style="color:var(--mut-d)">' + T('noMonthEntry') + '</span><p>' + T('noMonthEntrySub') + '</p>';
 
     var roas = t.ads > 0 ? (t.inc / t.ads) : null;
     var nInc = list.filter(function (e) { return e.type === 'income'; }).length;
     $('#kpis').innerHTML = [
-      { k: 'মোট আয়', c: 'var(--inc)', v: fmt$(t.inc), s: nInc + 'টি পেমেন্ট' },
-      { k: 'মোট খরচ', c: 'var(--exp)', v: fmt$(t.exp), s: 'অ্যাডে ' + fmt$(t.ads) },
-      { k: 'অ্যাড রিটার্ন (ROAS)', v: roas ? roas.toFixed(2) + '×' : '—', s: roas ? 'বিজ্ঞাপনে ' + curSym() + '1 খরচে ' + fmt$(round2(roas)) + ' আয়' : 'অ্যাড খরচ নেই' },
-      { k: 'গড় পেমেন্ট', v: nInc ? fmt$(round2(t.inc / nInc)) : '—', s: 'প্রতি পেমেন্টে' }
+      { k: T('totalIncome'), c: 'var(--inc)', v: fmt$(t.inc), s: T('paymentsCount', { n: nInc }) },
+      { k: T('totalExpense'), c: 'var(--exp)', v: fmt$(t.exp), s: T('inAds', { v: fmt$(t.ads) }) },
+      { k: T('adReturn'), v: roas ? roas.toFixed(2) + '×' : '—', s: roas ? T('roasSub', { c: curSym(), v: fmt$(round2(roas)) }) : T('noAdSpend') },
+      { k: T('avgPayment'), v: nInc ? fmt$(round2(t.inc / nInc)) : '—', s: T('perPayment') }
     ].map(function (x) {
       return '<div class="kpi" data-st><div class="k">' + (x.c ? '<i style="background:' + x.c + '"></i>' : '') + x.k + '</div><div class="v">' + x.v + '</div><div class="s">' + x.s + '</div></div>';
     }).join('');
@@ -389,10 +394,11 @@
     }).filter(function (r) { return r.inc || r.ads; }).sort(function (a, b) { return b.inc - a.inc; });
     var maxInc = Math.max.apply(null, rows.map(function (r) { return r.inc; }).concat([1]));
     $('#svcBreak').innerHTML = rows.length ? '<div class="brk">' + rows.map(function (r) {
+      var ratio = Math.max(0.02, Math.min(1, r.inc / maxInc));
       return '<div class="brk-row"><div class="top"><span><i style="background:' + r.s.color + '"></i>' + esc(r.s.name) + '</span><b>' + fmt$(round2(r.inc)) + '</b></div>' +
-        '<div class="sub">অ্যাড ' + fmt$(round2(r.ads)) + ' · নেট ' + fmt$(round2(r.inc - r.ads), true) + (r.ads ? ' · ROAS ' + (r.inc / r.ads).toFixed(1) + '×' : '') + '</div>' +
-        '<div class="bar"><i style="width:' + (r.inc / maxInc * 100) + '%;background:' + r.s.color + '"></i></div></div>';
-    }).join('') + '</div>' : '<div class="muted-d">এই মাসে কোনো সার্ভিসে আয় নেই</div>';
+        '<div class="sub">' + T('adLabel') + ' ' + fmt$(round2(r.ads)) + ' · ' + T('netLabel') + ' ' + fmt$(round2(r.inc - r.ads), true) + (r.ads ? ' · ROAS ' + (r.inc / r.ads).toFixed(1) + '×' : '') + '</div>' +
+        '<div class="bar"><i style="width:100%;transform:scaleX(' + ratio.toFixed(4) + ');background:' + r.s.color + '"></i></div></div>';
+    }).join('') + '</div>' : '<div class="muted-d">' + T('noSvcIncome') + '</div>';
 
     // খরচ ব্রেকডাউন
     var byCat = {};
@@ -400,9 +406,10 @@
     var keys = Object.keys(byCat).sort(function (a, b) { return byCat[b] - byCat[a]; });
     $('#expBreak').innerHTML = keys.length ? '<div class="brk">' + keys.map(function (k) {
       var c = cat(k), pct = t.exp ? byCat[k] / t.exp * 100 : 0;
+      var ratio = Math.max(0.02, Math.min(1, pct / 100));
       return '<div class="brk-row"><div class="top"><span><i style="background:' + c.color + '"></i>' + esc(c.name) + '</span><b>' + fmt$(round2(byCat[k])) + ' <span style="color:var(--mut-d);font-weight:600">· ' + Math.round(pct) + '%</span></b></div>' +
-        '<div class="bar"><i style="width:' + pct + '%;background:' + c.color + '"></i></div></div>';
-    }).join('') + '</div>' : '<div class="muted-d">এই মাসে কোনো খরচ নেই</div>';
+        '<div class="bar"><i style="width:100%;transform:scaleX(' + ratio.toFixed(4) + ');background:' + c.color + '"></i></div></div>';
+    }).join('') + '</div>' : '<div class="muted-d">' + T('noExpense') + '</div>';
   }
 
   function renderTrend() {
@@ -435,12 +442,12 @@
       if (sel) bars += '<rect class="sel-bg" x="' + (L + i * band + 2) + '" y="' + T + '" width="' + (band - 4) + '" height="' + ph + '" rx="10"/>';
       bars += bar(cx - bw - gap / 2, mo.inc, 'var(--inc)', sel ? 1 : 0.55);
       bars += bar(cx + gap / 2, mo.exp, 'var(--exp)', sel ? 1 : 0.55);
-      labels += '<text x="' + cx + '" y="' + (H - 6) + '" text-anchor="middle" style="' + (sel ? 'fill:#fff' : '') + '">' + BN_MS[mo.m] + '</text>';
+      labels += '<text x="' + cx + '" y="' + (H - 6) + '" text-anchor="middle" style="' + (sel ? 'fill:#fff' : '') + '">' + getMonthsShort()[mo.m] + '</text>';
       hits += '<rect class="hit" data-ym="' + mo.y + '-' + mo.m + '" x="' + (L + i * band) + '" y="0" width="' + band + '" height="' + H + '"/>';
     });
-    $('#trend').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="৬ মাসের আয় ও খরচ">' + g + bars + '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '" stroke="rgba(255,255,255,.25)"/>' + labels + hits + '</svg>';
+    $('#trend').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(T('trend6m')) + '">' + g + bars + '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '" stroke="rgba(255,255,255,.25)"/>' + labels + hits + '</svg>';
     var cur = months[months.length - 1];
-    $('#trendRead').innerHTML = '<span>' + BN_M[cur.m] + '</span><span>আয় <b>' + fmt$(cur.inc) + '</b></span><span>খরচ <b>' + fmt$(cur.exp) + '</b></span><span>নেট <b>' + fmt$(cur.net, true) + '</b></span>';
+    $('#trendRead').innerHTML = '<span>' + getMonths()[cur.m] + '</span><span>' + T('income') + ' <b>' + fmt$(cur.inc) + '</b></span><span>' + T('expense') + ' <b>' + fmt$(cur.exp) + '</b></span><span>' + T('netLabel') + ' <b>' + fmt$(cur.net, true) + '</b></span>';
   }
 
   /* =================================================================
@@ -1041,9 +1048,9 @@
   }
 
   function fmtSyncTime(ts) {
-    if (!ts) return 'কখনো না';
+    if (!ts) return T('never');
     var d = new Date(ts);
-    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ' · ' + d.getDate() + ' ' + BN_MS[d.getMonth()];
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ' · ' + d.getDate() + ' ' + getMonthsShort()[d.getMonth()];
   }
 
   function openCloudSettings() {
@@ -1124,32 +1131,49 @@
     var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
     var installSub = standalone ? 'অ্যাপ হিসেবে চলছে' : deferredInstall ? 'হোম স্ক্রিনে অ্যাপ হিসেবে রাখুন' : isIOS ? 'Safari-তে Share → “Add to Home Screen”' : 'ব্রাউজার মেনু → “Install app / Add to Home screen”';
     var cur = (S.settings && S.settings.currency) || 'BDT';
+    var lang = (S.settings && S.settings.lang) || 'bn';
     var cloudCfg = Store.getCloudConfig();
     var cloudConnected = !!cloudCfg.url;
-    var cloudSub = cloudConnected ? 'কানেক্টেড · শেষ সিঙ্ক ' + fmtSyncTime(cloudCfg.lastSync) : 'ফ্রি ক্লাউড ডাটাবেস ও অটো-সিঙ্ক চালু করুন';
+    var cloudSub = cloudConnected ? T('connectedSync', { t: fmtSyncTime(cloudCfg.lastSync) }) : T('setupCloudSub');
 
     openModal(
-      '<h3 class="m-title">সেটিংস</h3>' +
-      '<div class="p-sec"><label for="profName">আপনার নাম</label><input class="field" id="profName" value="' + esc(S.profile.name || '') + '" placeholder="নাম লিখুন"></div>' +
-      '<div class="p-sec"><span class="p-lbl">কারেন্সি নির্বাচন</span>' +
+      '<h3 class="m-title">' + esc(T('settings')) + '</h3>' +
+      '<div class="p-sec"><label for="profName">' + esc(T('yourName')) + '</label><input class="field" id="profName" value="' + esc(S.profile.name || '') + '" placeholder="' + esc(T('enterName')) + '"></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + esc(T('language')) + '</span>' +
+      '<div class="chips chips-tight" id="langChips" style="margin-top:6px">' +
+      '<button class="chip ' + (lang === 'bn' ? 'on' : '') + '" data-l="bn">বাংলা</button>' +
+      '<button class="chip ' + (lang === 'en' ? 'on' : '') + '" data-l="en">English</button>' +
+      '</div></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + esc(T('currency')) + '</span>' +
       '<div class="chips chips-tight" id="currChips" style="margin-top:6px">' +
       '<button class="chip ' + (cur === 'BDT' ? 'on' : '') + '" data-c="BDT">৳ টাকা (BDT)</button>' +
-      '<button class="chip ' + (cur === 'USD' ? 'on' : '') + '" data-c="USD">$ ডলার (USD)</button>' +
+      '<button class="chip ' + (cur === 'USD' ? 'on' : '') + '" data-c="USD">$ USD ($)</button>' +
       '</div></div>' +
       '<div class="set-list">' +
-      '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>গুগল শিট ডাটাবেস</b><small>' + esc(cloudSub) + '</small></span></button>' +
-      '<button class="set-item" id="setUpdate"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>অ্যাপ আপডেট (v' + esc(window.APP_VERSION || '1.0.0') + ')</b><small id="setUpdateSub">নতুন আপডেট চেক ও ইনস্টল করুন</small></span></button>' +
-      '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>অ্যাপ ইন্সটল করুন</b><small>' + installSub + '</small></span></button>' +
-      '<button class="set-item" id="setBackup"><span class="si-ic">' + ic('file', 18) + '</span><span><b>ব্যাকআপ ডাউনলোড করুন</b><small>সম্পূর্ণ ডেটা JSON ফাইল হিসেবে ফোনে সেভ হবে</small></span></button>' +
-      '<button class="set-item" id="setRestore"><span class="si-ic">' + ic('upload', 18) + '</span><span><b>ব্যাকআপ রিস্টোর করুন</b><small>আগের সংরক্ষিত JSON ফাইল থেকে ডেটা আনুন</small></span></button>' +
-      '<button class="set-item" id="setCsv"><span class="si-ic">' + ic('file', 18) + '</span><span><b>Excel / CSV ডাউনলোড</b><small>সব লেনদেনের স্প্রেডশীট ফাইল</small></span></button>' +
-      (navigator.share ? '<button class="set-item" id="setShare"><span class="si-ic">' + ic('share', 18) + '</span><span><b>মাসিক রিপোর্ট শেয়ার</b><small>হোয়াটসঅ্যাপ বা মেসেঞ্জারে পাঠান</small></span></button>' : '') +
-      '<button class="set-item" id="setCopy"><span class="si-ic">' + ic('copy', 18) + '</span><span><b>ক্লিপবোর্ডে কপি করুন</b><small>সব ডেটা JSON কোড হিসেবে কপি হবে</small></span></button>' +
-      '<button class="set-item danger" id="setReset"><span class="si-ic">' + ic('trash', 18) + '</span><span><b>সব এন্ট্রি মুছে ফেলুন</b><small>সার্ভিসগুলো থাকবে, বাকি সব মুছবে</small></span></button>' +
+      '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>' + esc(T('googleSheetDb')) + '</b><small>' + esc(cloudSub) + '</small></span></button>' +
+      '<button class="set-item" id="setUpdate"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>' + esc(T('appUpdate', { v: window.APP_VERSION || '1.0.0' })) + '</b><small id="setUpdateSub">' + esc(T('checkInstallUpdate')) + '</small></span></button>' +
+      '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>' + esc(T('installApp')) + '</b><small>' + installSub + '</small></span></button>' +
+      '<button class="set-item" id="setBackup"><span class="si-ic">' + ic('file', 18) + '</span><span><b>' + esc(T('backupDownload')) + '</b><small>' + esc(T('backupDownloadSub')) + '</small></span></button>' +
+      '<button class="set-item" id="setRestore"><span class="si-ic">' + ic('upload', 18) + '</span><span><b>' + esc(T('backupRestore')) + '</b><small>' + esc(T('backupRestoreSub')) + '</small></span></button>' +
+      '<button class="set-item" id="setCsv"><span class="si-ic">' + ic('file', 18) + '</span><span><b>' + esc(T('csvDownload')) + '</b><small>' + esc(T('csvDownloadSub')) + '</small></span></button>' +
+      (navigator.share ? '<button class="set-item" id="setShare"><span class="si-ic">' + ic('share', 18) + '</span><span><b>' + esc(T('shareReport')) + '</b><small>' + esc(T('shareReportSub')) + '</small></span></button>' : '') +
+      '<button class="set-item" id="setCopy"><span class="si-ic">' + ic('copy', 18) + '</span><span><b>' + esc(T('copyClipboard')) + '</b><small>' + esc(T('copyClipboardSub')) + '</small></span></button>' +
+      '<button class="set-item danger" id="setReset"><span class="si-ic">' + ic('trash', 18) + '</span><span><b>' + esc(T('resetAll')) + '</b><small>' + esc(T('resetAllSub')) + '</small></span></button>' +
       '</div>' +
       '<input type="file" id="restoreInput" accept=".json,application/json" style="display:none">',
       function (root) {
         $('#profName', root).onchange = function (e) { Store.setProfile({ name: e.target.value.trim() }); };
+        $('#langChips', root).onclick = function (e) {
+          var b = e.target.closest('[data-l]'); if (!b) return;
+          var nextL = b.dataset.l;
+          vib(6);
+          Store.setSettings({ lang: nextL }).then(function () {
+            if (window.I18n) window.I18n.applyDOM();
+            renderTab(ui.tab, false);
+            closeModal();
+            toast(T('langChanged'));
+          });
+        };
         $('#setCloud', root).onclick = function () { closeModal(); setTimeout(openCloudSettings, 200); };
         $('#setUpdate', root).onclick = function () {
           if (!window.AppUpdater) { toast('আপডেটার পাওয়া যায়নি'); return; }
@@ -1222,10 +1246,10 @@
         if (sShare) {
           sShare.onclick = function () {
             var t = totals(monthEntries());
-            var text = '📊 হিসাব খাতা (' + BN_M[ui.month.m] + ' ' + ui.month.y + ')\n' +
-              'মোট আয়: ' + fmt$(t.inc) + '\n' +
-              'মোট খরচ: ' + fmt$(t.exp) + ' (অ্যাডে: ' + fmt$(t.ads) + ')\n' +
-              'নেট লাভ: ' + fmt$(t.net) + '\n' +
+            var text = '📊 ' + T('appTitle') + ' (' + getMonths()[ui.month.m] + ' ' + ui.month.y + ')\n' +
+              T('totalIncome') + ': ' + fmt$(t.inc) + '\n' +
+              T('totalExpense') + ': ' + fmt$(t.exp) + ' (' + T('adLabel') + ': ' + fmt$(t.ads) + ')\n' +
+              T('netLabel') + ': ' + fmt$(t.net) + '\n' +
               (t.ads > 0 ? 'ROAS: ' + (t.inc / t.ads).toFixed(2) + '×\n' : '');
             navigator.share({ title: 'হিসাব খাতা রিপোর্ট', text: text }).catch(function () { /* */ });
           };
@@ -1358,6 +1382,7 @@
   /* ---------------- শুরু ---------------- */
   Store.init().then(function (state) {
     S = state;
+    if (window.I18n) window.I18n.applyDOM();
     paintIcons();
     paintAvatar();
     paintSyncBadge(Store.getSyncStatus());
@@ -1373,6 +1398,7 @@
     } catch (e) { /* */ }
     Store.subscribe(function (st) {
       S = st;
+      if (window.I18n) window.I18n.applyDOM();
       paintAvatar();
       renderTab(ui.tab, ui.tab === 'home');
       if ($('#ctxPanel').classList.contains('open')) renderCtx();
