@@ -1,5 +1,5 @@
 /* হিসাব খাতা — অফলাইন সার্ভিস ওয়ার্কার */
-const VERSION = 'hisab-v7';
+const VERSION = 'hisab-v8';
 const SHELL = [
   './',
   'index.html',
@@ -10,6 +10,7 @@ const SHELL = [
   'js/updater.js',
   'js/app.js',
   'manifest.webmanifest',
+  'icons/logo.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-maskable-512.png',

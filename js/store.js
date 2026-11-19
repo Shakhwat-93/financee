@@ -363,8 +363,22 @@
     },
 
     addClient: function (data) {
-      var c = { id: 'c_' + uid(), name: String(data.name).trim(), color: CLIENT_COLORS[state.clients.length % CLIENT_COLORS.length], demo: false };
+      var c = {
+        id: 'c_' + uid(),
+        name: String(data.name).trim(),
+        color: data.color || CLIENT_COLORS[state.clients.length % CLIENT_COLORS.length],
+        phone: String(data.phone || '').trim(),
+        demo: false
+      };
       state.clients.push(c);
+      commit();
+      return Promise.resolve(c);
+    },
+
+    updateClient: function (id, patch) {
+      var c = state.clients.find(function (x) { return x.id === id; });
+      if (!c) return Promise.reject(new Error('not found'));
+      Object.assign(c, patch);
       commit();
       return Promise.resolve(c);
     },

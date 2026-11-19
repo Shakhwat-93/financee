@@ -984,12 +984,20 @@
     var c = cli(id); if (!c) return;
     var list = S.entries.filter(function (e) { return e.type === 'income' && e.client === id; }).sort(function (a, b) { return b.date.localeCompare(a.date); });
     var total = list.reduce(function (a, e) { return a + e.amount; }, 0);
+    var cleanPhone = String(c.phone || '').replace(/[^0-9+]/g, '');
+    var waHref = cleanPhone ? ('https://wa.me/' + cleanPhone.replace(/^\+/, '').replace(/^0/, '880')) : '';
     openModal(
-      '<div class="d-head">' + avatarHTML(c).replace('class="av ', 'class="av tx-ic ') + '<div class="d-amt">' + curSym() + fmtN(total) + '</div><div class="d-title">' + esc(c.name) + ' · ' + list.length + 'টি পেমেন্ট</div></div>' +
-      '<button class="btn-dark" id="cAdd" style="margin-top:12px">' + esc(c.name.split(' ')[0]) + '-এর পেমেন্ট যোগ করুন</button>' +
-      '<div class="mini-list">' + (list.length ? list.slice(0, 30).map(txRowHTML).join('') : '<div class="empty">এখনো কোনো পেমেন্ট নেই</div>') + '</div>',
+      '<div class="d-head">' + avatarHTML(c).replace('class="av ', 'class="av tx-ic ') + '<div class="d-amt">' + curSym() + fmtN(total) + '</div><div class="d-title">' + esc(c.name) + ' · ' + T('paymentsCount', { n: list.length }) + '</div></div>' +
+      '<button class="btn-dark" id="cAdd" style="margin-top:12px">' + esc(c.name.split(' ')[0]) + ' — + ' + T('income') + '</button>' +
+      '<div class="btn-row" style="margin-top:8px">' +
+      (waHref ? '<a class="wa-btn" href="' + waHref + '" target="_blank" rel="noopener">WhatsApp</a>' : '<button class="btn-light" id="cEditPhone" style="height:46px;font-size:14px">+ WhatsApp</button>') +
+      '<button class="btn-light" id="cEdit" style="height:46px;font-size:14px">' + T('edit') + '</button></div>' +
+      '<div class="mini-list">' + (list.length ? list.slice(0, 30).map(txRowHTML).join('') : '<div class="empty">' + T('noTxTitle') + '</div>') + '</div>',
       function (root) {
         $('#cAdd', root).onclick = function () { closeModal(); setTimeout(function () { openEntry({ type: 'income', client: id, svc: (list[0] && list[0].svc) || (activeServices()[0] || {}).id }); }, 180); };
+        $('#cEdit', root).onclick = function () { closeModal(); setTimeout(function () { openClientForm(id); }, 180); };
+        var ep = $('#cEditPhone', root);
+        if (ep) ep.onclick = function () { closeModal(); setTimeout(function () { openClientForm(id); }, 180); };
       });
   }
 
@@ -1017,16 +1025,32 @@
       });
   }
 
-  function openClientForm() {
+  function openClientForm(id) {
+    var c = id ? cli(id) : null;
+    var color = c ? c.color : Store.CLIENT_COLORS[S.clients.length % Store.CLIENT_COLORS.length];
+    var isEn = window.I18n && window.I18n.lang() === 'en';
     openModal(
-      '<h3 class="m-title">নতুন ক্লায়েন্ট</h3><p class="m-sub">নাম দিলেই হবে, পরে পেমেন্টের সাথে বেছে নিতে পারবেন।</p>' +
-      '<div class="p-sec"><label for="cliName">নাম</label><input class="field" id="cliName" placeholder="যেমন: রহিম ট্রেডার্স"></div>' +
-      '<div style="margin-top:22px"><button class="btn-dark" id="cliSave">যোগ করুন</button></div>',
+      '<h3 class="m-title">' + (c ? (isEn ? 'Edit Client' : 'ক্লায়েন্ট এডিট') : (isEn ? 'New Client' : 'নতুন ক্লায়েন্ট')) + '</h3>' +
+      '<div class="p-sec"><label for="cliName">' + (isEn ? 'Name' : 'নাম') + '</label><input class="field" id="cliName" value="' + esc(c ? c.name : '') + '" placeholder="' + (isEn ? 'e.g. Rahim Traders' : 'যেমন: রহিম ট্রেডার্স') + '"></div>' +
+      '<div class="p-sec"><label for="cliPhone">' + (isEn ? 'WhatsApp / Phone (Optional)' : 'হোয়াটসঅ্যাপ / ফোন (ঐচ্ছিক)') + '</label><input class="field" id="cliPhone" type="tel" value="' + esc(c ? (c.phone || '') : '') + '" placeholder="017XXXXXXXX"></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Avatar Color' : 'অ্যাভাটারের রঙ') + '</span><div class="color-row" id="cColorRow">' +
+      Store.CLIENT_COLORS.map(function (col) { return '<button class="color-dot' + (col === color ? ' on' : '') + '" data-color="' + col + '" style="background:' + col + '" aria-label="Color"></button>'; }).join('') +
+      '</div></div>' +
+      '<div style="margin-top:22px"><button class="btn-dark" id="cliSave">' + (c ? T('saved').replace('হয়েছে', 'করুন') : T('addClient')) + '</button></div>',
       function (root) {
+        $('#cColorRow', root).onclick = function (e) {
+          var b = e.target.closest('[data-color]'); if (!b) return;
+          color = b.dataset.color;
+          $$('.color-dot', root).forEach(function (d) { d.classList.toggle('on', d === b); });
+        };
         var save = function () {
           var name = $('#cliName', root).value.trim();
+          var phone = $('#cliPhone', root).value.trim();
           if (!name) { $('#cliName', root).focus(); return; }
-          Store.addClient({ name: name }).then(function () { closeModal(); toast(name + ' যোগ হলো'); });
+          var req = c
+            ? Store.updateClient(c.id, { name: name, phone: phone, color: color })
+            : Store.addClient({ name: name, phone: phone, color: color });
+          req.then(function () { closeModal(); toast(c ? T('saved') : name + ' ✓'); });
         };
         $('#cliSave', root).onclick = save;
         $('#cliName', root).onkeydown = function (e) { if (e.key === 'Enter') save(); };
@@ -1126,6 +1150,105 @@
       });
   }
 
+  var AVATAR_GRADIENTS = [
+    'conic-gradient(from 200deg, #FFE14A, #2BE8B5, #2AA8FF, #FFE14A)',
+    'linear-gradient(135deg, #2BE8B5, #18A957)',
+    'linear-gradient(135deg, #FFE14A, #FF8A4C)',
+    'linear-gradient(135deg, #6366F1, #EC4899)',
+    'linear-gradient(135deg, #06B6D4, #3B82F6)',
+    'linear-gradient(135deg, #F43F5E, #FB923C)',
+    'linear-gradient(135deg, #A855F7, #38BDF8)',
+    'linear-gradient(135deg, #E2E8F0, #94A3B8)'
+  ];
+  var AVATAR_EMOJIS = ['', '💼', '🚀', '⚡', '👑', '🎯', '💎', '🎬', '💻', '🎨', '📈', '🦁'];
+
+  function compressAvatarPhoto(file, cb) {
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      var img = new Image();
+      img.onload = function () {
+        var size = 128;
+        var canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        var ctx = canvas.getContext('2d');
+        var min = Math.min(img.width, img.height);
+        var sx = (img.width - min) / 2, sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+        cb(canvas.toDataURL('image/jpeg', 0.78));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderAvatarInner(p) {
+    if (p && p.photo) return '<img class="av-img" src="' + p.photo + '" alt="Avatar">';
+    if (p && p.emoji) return '<span class="av-em">' + p.emoji + '</span>';
+    return esc(p && p.name ? initials(p.name) : (window.I18n && window.I18n.lang() === 'en' ? 'HK' : 'হি'));
+  }
+
+  function openAvatarStudio() {
+    var p = Object.assign({ name: '', gradient: AVATAR_GRADIENTS[0], emoji: '', photo: '' }, S.profile || {});
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    openModal(
+      '<h3 class="m-title">' + (isEn ? 'Avatar Studio' : 'অ্যাভাটার স্টুডিও') + '</h3>' +
+      '<p class="m-sub">' + (isEn ? 'Customize your profile avatar with gradients, icons, or your own photo.' : 'গ্রেডিয়েন্ট, আইকন বা আপনার নিজের ছবি দিয়ে প্রোফাইল সাজান।') + '</p>' +
+      '<div class="av-preview-row">' +
+      '<div class="av-big" id="avBig" style="background:' + (p.gradient || AVATAR_GRADIENTS[0]) + '">' + renderAvatarInner(p) + '</div>' +
+      '<div style="flex:1"><button class="btn-dark sm" id="avUploadBtn" style="width:100%">' + (isEn ? 'Upload Photo' : 'ছবি আপলোড করুন') + '</button>' +
+      (p.photo ? '<button class="btn-light" id="avRemovePhoto" style="height:36px;margin-top:6px;font-size:12.5px">' + (isEn ? 'Remove Photo' : 'ছবি সরান') + '</button>' : '') +
+      '</div></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Luxury Gradients' : 'গ্রেডিয়েন্ট স্টাইল') + '</span><div class="color-row" id="avGrads">' +
+      AVATAR_GRADIENTS.map(function (g, i) { return '<button class="color-dot' + (g === p.gradient ? ' on' : '') + '" data-gi="' + i + '" style="background:' + g + '"></button>'; }).join('') +
+      '</div></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Icon / Initials' : 'আইকন বা অক্ষর') + '</span><div class="av-grid" id="avEmojis">' +
+      AVATAR_EMOJIS.map(function (em) { return '<button class="av-em-btn' + (em === (p.emoji || '') && !p.photo ? ' on' : '') + '" data-em="' + em + '">' + (em || 'Aa') + '</button>'; }).join('') +
+      '</div></div>' +
+      '<div style="margin-top:20px"><button class="btn-dark" id="avSaveBtn">' + T('ok') + '</button></div>' +
+      '<input type="file" id="avFileInp" accept="image/*" style="display:none">',
+      function (root) {
+        var syncPrev = function () {
+          var box = $('#avBig', root);
+          box.style.background = p.gradient || AVATAR_GRADIENTS[0];
+          box.innerHTML = renderAvatarInner(p);
+        };
+        $('#avGrads', root).onclick = function (e) {
+          var b = e.target.closest('[data-gi]'); if (!b) return;
+          vib(5);
+          p.gradient = AVATAR_GRADIENTS[Number(b.dataset.gi)];
+          p.photo = '';
+          $$('#avGrads .color-dot', root).forEach(function (d) { d.classList.toggle('on', d === b); });
+          syncPrev();
+        };
+        $('#avEmojis', root).onclick = function (e) {
+          var b = e.target.closest('[data-em]'); if (!b) return;
+          vib(5);
+          p.emoji = b.dataset.em;
+          p.photo = '';
+          $$('#avEmojis .av-em-btn', root).forEach(function (d) { d.classList.toggle('on', d === b); });
+          syncPrev();
+        };
+        var fInp = $('#avFileInp', root);
+        $('#avUploadBtn', root).onclick = function () { fInp.click(); };
+        fInp.onchange = function (e) {
+          var f = e.target.files && e.target.files[0]; if (!f) return;
+          compressAvatarPhoto(f, function (dataUrl) {
+            p.photo = dataUrl;
+            syncPrev();
+            toast(isEn ? 'Photo ready!' : 'ছবি প্রস্তুত!');
+          });
+        };
+        var rem = $('#avRemovePhoto', root);
+        if (rem) rem.onclick = function () { p.photo = ''; syncPrev(); rem.remove(); };
+        $('#avSaveBtn', root).onclick = function () {
+          Store.setProfile({ gradient: p.gradient, emoji: p.emoji, photo: p.photo }).then(function () {
+            closeModal();
+            toast(T('saved'));
+          });
+        };
+      });
+  }
+
   function openSettings() {
     var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
@@ -1136,9 +1259,10 @@
     var cloudConnected = !!cloudCfg.url;
     var cloudSub = cloudConnected ? T('connectedSync', { t: fmtSyncTime(cloudCfg.lastSync) }) : T('setupCloudSub');
 
+    var isEn = window.I18n && window.I18n.lang() === 'en';
     openModal(
-      '<h3 class="m-title">' + esc(T('settings')) + '</h3>' +
-      '<div class="p-sec"><label for="profName">' + esc(T('yourName')) + '</label><input class="field" id="profName" value="' + esc(S.profile.name || '') + '" placeholder="' + esc(T('enterName')) + '"></div>' +
+      '<div class="brand-head"><img src="icons/logo.svg" alt="Logo"><div><h3>' + esc(T('appTitle')) + '</h3><span>v' + esc(window.APP_VERSION || '1.0.0') + ' · ' + esc(T('settings')) + '</span></div></div>' +
+      '<div class="p-sec"><label for="profName">' + esc(T('yourName')) + '</label><div class="row-inline"><input class="field" id="profName" value="' + esc(S.profile.name || '') + '" placeholder="' + esc(T('enterName')) + '"><button class="btn-dark sm" id="openAvBtn">' + (isEn ? 'Avatar' : 'অ্যাভাটার') + '</button></div></div>' +
       '<div class="p-sec"><span class="p-lbl">' + esc(T('language')) + '</span>' +
       '<div class="chips chips-tight" id="langChips" style="margin-top:6px">' +
       '<button class="chip ' + (lang === 'bn' ? 'on' : '') + '" data-l="bn">বাংলা</button>' +
@@ -1163,6 +1287,7 @@
       '<input type="file" id="restoreInput" accept=".json,application/json" style="display:none">',
       function (root) {
         $('#profName', root).onchange = function (e) { Store.setProfile({ name: e.target.value.trim() }); };
+        $('#openAvBtn', root).onclick = function () { closeModal(); setTimeout(openAvatarStudio, 200); };
         $('#langChips', root).onclick = function (e) {
           var b = e.target.closest('[data-l]'); if (!b) return;
           var nextL = b.dataset.l;
@@ -1372,7 +1497,10 @@
     $$('.tab').forEach(function (b) { b.innerHTML = ic(tabIc[b.dataset.tab], 21, 2.1); });
   }
   function paintAvatar() {
-    $('#avatarBtn').textContent = S.profile.name ? initials(S.profile.name) : 'হি';
+    var btn = $('#avatarBtn');
+    if (!btn) return;
+    btn.style.background = (S.profile && S.profile.gradient) || AVATAR_GRADIENTS[0];
+    btn.innerHTML = renderAvatarInner(S.profile);
   }
   function paintSyncBadge(st) {
     var btn = $('#avatarBtn');
