@@ -39,7 +39,7 @@
 
   var KEY = 'hisab.v1';
   var CLOUD_KEY = 'hisab.gsheet.v1';
-  var DEFAULT_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbysRtOYS-LPZWJ7_uBAh4HlfeuZ5iOHIT7A3uG_FL-uYs-SA0G4LPJIMx0FTvCULOXueQ/exec';
+  var DEFAULT_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbzHVl3Tdh-zFlqmvyQZ6ClX4t74yaitv39MjF11ieU-LNSiewAq6BwOvWxhI8neV_uMmQ/exec';
   var DEFAULT_CLOUD_SECRET = 'hisab123';
   var listeners = new Set();
   var syncListeners = new Set();

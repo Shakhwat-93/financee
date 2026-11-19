@@ -1,22 +1,4 @@
-/**
- * =========================================================================
- * হিসাব খাতা — Google Sheets Database Backend (Google Apps Script)
- * =========================================================================
- * কীভাবে সেটআপ করবেন (১ মিনিট):
- * ১. আপনার Google Sheet খুলুন → উপরের মেনু থেকে Extensions → Apps Script
- * ২. আগের সব কোড মুছে এই পুরো কোডটা পেস্ট করুন এবং Save (Ctrl+S) দিন।
- * ৩. (ঐচ্ছিক) নিচের SECRET_PIN বদলে নিজের গোপন পিন দিতে পারেন (অ্যাপের সেটিংসেও একই পিন দেবেন)।
- * ৪. উপরে ডান পাশে Deploy → New deployment →
- *    - Select type: Web app
- *    - Execute as: Me
- *    - Who has access: Anyone
- *    → Deploy বাটনে ক্লিক করুন ও Authorize দিন।
- * ৫. যে Web app URL পাবেন (https://script.google.com/macros/s/.../exec),
- *    সেটা কপি করে হিসাব খাতা অ্যাপের সেটিংস → "গুগল শিট ডাটাবেস"-এ পেস্ট করুন!
- * =========================================================================
- */
-
-var SECRET_PIN = 'hisab123'; // খালি '' রাখলে কোনো পিন লাগবে না
+var SECRET_PIN = 'hisab123';
 
 var HEADERS = {
   Entries: ['id', 'type', 'amount', 'date', 'svc', 'client', 'cat', 'forSvc', 'note', 'createdAt', 'demo'],
