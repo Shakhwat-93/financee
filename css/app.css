@@ -277,6 +277,32 @@ body.privacy-on .d-amt {
 }
 .btn-success:active { transform: scale(.98); }
 
+/* recurring pill & quick amount chips */
+.rec-pill {
+  margin-top: 10px; width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-radius: 18px;
+  background: rgba(43, 232, 181, .10);
+  border: 1px solid rgba(43, 232, 181, .28);
+  color: #7CF0C0; font-size: 13px; font-weight: 700;
+  transition: transform .15s var(--ease);
+}
+.rec-pill:active { transform: scale(.985); }
+.rec-pill b { font-size: 12.5px; background: var(--pos-d); color: #09140E; padding: 4px 11px; border-radius: 999px; font-weight: 800; }
+.quick-amts {
+  display: flex; gap: 6px; padding: 0 20px 8px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.quick-amts::-webkit-scrollbar { display: none; }
+.quick-amts button {
+  flex: none; height: 30px; padding: 0 12px; border-radius: 999px;
+  background: var(--paper-2); color: #474A49; font-size: 12.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: transform .12s var(--ease), background .15s;
+}
+.quick-amts button:active { transform: scale(.92); background: var(--key-press); }
+.quick-amts button.q-clr { background: #FDECEA; color: #C3352B; }
+
 /* white list sheet (home + clients) */
 .list-sheet {
   flex: 1;

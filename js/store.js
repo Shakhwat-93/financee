@@ -276,6 +276,7 @@
       if (!state || !state.entries) { state = seed(); save(); }
       if (stripDemo(state)) { save(); }
       if (!state.expenseCats) state.expenseCats = EXPENSE_CATS;
+      if (!state.recurring) state.recurring = [];
       if (!state.profile) state.profile = { name: '' };
       if (!state.settings) state.settings = { currency: 'BDT', lang: 'bn' };
       if (!state.settings.lang) state.settings.lang = 'bn';
@@ -382,6 +383,60 @@
       Object.assign(c, patch);
       commit();
       return Promise.resolve(c);
+    },
+
+    addExpenseCat: function (data) {
+      var k = {
+        id: 'cat_' + uid(),
+        name: String(data.name || '').trim(),
+        color: data.color || SERVICE_COLORS[state.expenseCats.length % SERVICE_COLORS.length],
+        isAd: !!data.isAd
+      };
+      state.expenseCats.push(k);
+      commit();
+      return Promise.resolve(k);
+    },
+
+    addRecurring: function (data) {
+      if (!state.recurring) state.recurring = [];
+      var item = {
+        id: 'rec_' + uid(),
+        title: String(data.title || '').trim(),
+        type: data.type === 'income' ? 'income' : 'expense',
+        amount: Math.round(Number(data.amount) * 100) / 100,
+        svc: data.svc || null,
+        cat: data.cat || 'tools',
+        lastPostedMonth: ''
+      };
+      state.recurring.push(item);
+      commit();
+      return Promise.resolve(item);
+    },
+
+    deleteRecurring: function (id) {
+      state.recurring = (state.recurring || []).filter(function (x) { return x.id !== id; });
+      commit();
+      return Promise.resolve();
+    },
+
+    postRecurringForMonth: function (ymKey, dateStr) {
+      var due = (state.recurring || []).filter(function (r) { return r.lastPostedMonth !== ymKey; });
+      if (!due.length) return Promise.resolve(0);
+      due.forEach(function (r) {
+        var e = pickEntryFields({
+          type: r.type,
+          amount: r.amount,
+          date: dateStr || iso(new Date()),
+          svc: r.type === 'income' ? r.svc : null,
+          cat: r.type === 'expense' ? (r.cat || 'tools') : null,
+          note: r.title + ' (Auto)'
+        });
+        e.id = uid(); e.createdAt = Date.now(); e.demo = false;
+        state.entries.push(e);
+        r.lastPostedMonth = ymKey;
+      });
+      commit();
+      return Promise.resolve(due.length);
     },
 
     setProfile: function (patch) {

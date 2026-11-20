@@ -336,6 +336,19 @@
       }
     }
 
+    // রিকারিং এন্ট্রি প্রম্পট
+    var rp = $('#recPill');
+    if (rp) {
+      var recDue = (S.recurring || []).filter(function (r) { return r.lastPostedMonth !== curKey(); });
+      if (recDue.length) {
+        rp.hidden = false;
+        $('#recLbl').textContent = isEn ? ('🔁 ' + recDue.length + ' monthly recurring due') : ('🔁 ' + recDue.length + 'টি মাসিক রিকারিং বাকি');
+        $('#recBtnTxt').textContent = isEn ? 'Post All' : 'সব পোস্ট করুন';
+      } else {
+        rp.hidden = true;
+      }
+    }
+
     renderTxList();
   }
 
@@ -778,7 +791,13 @@
     $$('#typeSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.type === E.type); });
     $('#ctxText').textContent = ctxLabel();
     var t = totals(monthEntries(E.date.slice(0, 7)));
-    $('#availLine').innerHTML = (E.editId ? 'এডিট করছেন · ' : '') + 'এই মাসের নেট <b>' + fmt$(t.net) + '</b>';
+    $('#availLine').innerHTML = (E.editId ? T('editing') : '') + T('thisMonthNet') + ' <b>' + fmt$(t.net) + '</b>';
+    var qa = $('#quickAmts');
+    if (qa) {
+      var presets = curSym() === '$' ? [10, 50, 100, 250, 500] : [500, 1000, 2000, 5000, 10000];
+      qa.innerHTML = '<button class="q-clr" data-qa="clr">C</button>' +
+        presets.map(function (n) { return '<button data-qa="' + n + '">+' + curSym() + n.toLocaleString('en-US') + '</button>'; }).join('');
+    }
     renderAmount(false);
   }
 
@@ -870,6 +889,22 @@
 
   $('#keys').addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (b) press(b.dataset.k); });
   $('#opsRow').addEventListener('click', function (e) { var b = e.target.closest('[data-k]'); if (b) press(b.dataset.k); });
+  if ($('#quickAmts')) {
+    $('#quickAmts').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-qa]'); if (!b) return;
+      vib(6);
+      var q = b.dataset.qa;
+      E.prev = E.expr;
+      if (q === 'clr') {
+        E.expr = '';
+      } else {
+        var cur = evalExpr(E.expr);
+        var next = round2((isNaN(cur) ? 0 : cur) + Number(q));
+        E.expr = String(next);
+      }
+      renderAmount(true);
+    });
+  }
   $('#eqChip').addEventListener('click', function () {
     var r = evalExpr(E.expr);
     if (isNaN(r) || r < 0) { toast('এই হিসাবটা মেলানো যাচ্ছে না'); return; }
@@ -1049,12 +1084,12 @@
         '</div><div class="row-inline" style="margin-top:10px"><input class="field" id="ctxNewClient" placeholder="' + esc(T('newClientName')) + '"><button class="btn-dark sm" id="ctxAddClient">' + T('add') + '</button></div></div>' +
         dateSec + noteSec;
     } else {
-      html = '<h3 class="p-title">কিসের খরচ?</h3>' +
-        '<div class="p-sec"><span class="p-lbl">খরচের ধরন</span><div class="opt-chips">' +
+      html = '<h3 class="p-title">' + T('whatExpense') + '</h3>' +
+        '<div class="p-sec"><span class="p-lbl">' + T('expenseType') + '</span><div class="opt-chips">' +
         S.expenseCats.map(function (k) { return optHTML('data-cat', k.id, E.cat === k.id, k.name, k.color, catIcon(k)); }).join('') +
-        '</div></div>' +
-        '<div class="p-sec"><span class="p-lbl">কোন সার্ভিসের জন্য? (ঐচ্ছিক)</span><div class="opt-chips">' +
-        optHTML('data-for', '', !E.forSvc, 'সাধারণ খরচ') +
+        '</div><div class="row-inline" style="margin-top:10px"><input class="field" id="ctxNewCat" placeholder="' + (isEn ? 'New category name' : 'নতুন খরচের ক্যাটাগরি') + '"><button class="btn-dark sm" id="ctxAddCat">' + T('add') + '</button></div></div>' +
+        '<div class="p-sec"><span class="p-lbl">' + T('forWhichSvc') + '</span><div class="opt-chips">' +
+        optHTML('data-for', '', !E.forSvc, T('generalExpense')) +
         activeServices().map(function (s) { return optHTML('data-for', s.id, E.forSvc === s.id, s.name, s.color, svcIcon(s)); }).join('') +
         '</div></div>' + dateSec + noteSec;
     }
@@ -1077,6 +1112,16 @@
       return;
     }
     if (e.target.closest('#ctxAddClient')) addClientFromCtx();
+    if (e.target.closest('#ctxAddCat')) {
+      var ci = $('#ctxNewCat'), cn = ci && ci.value.trim();
+      if (!cn) { if (ci) ci.focus(); return; }
+      var isAd = /ad|boost|fb|google|tiktok|অ্যাড|বুস্ট/i.test(cn);
+      Store.addExpenseCat({ name: cn, isAd: isAd }).then(function (k) {
+        E.cat = k.id;
+        renderCtx();
+        toast(cn + ' ✓');
+      });
+    }
   });
   $('#ctxPanelIn').addEventListener('change', function (e) {
     if (e.target.id === 'ctxDate' && e.target.value) { E.date = e.target.value; E.note = ($('#ctxNote') || {}).value || E.note; renderCtx(); }
@@ -1611,6 +1656,56 @@
       });
   }
 
+  function openRecurringManager() {
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var items = S.recurring || [];
+    var rowsHtml = items.length
+      ? items.map(function (r) {
+          var posted = r.lastPostedMonth === curKey();
+          return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:16px;background:var(--paper-2);margin-top:8px">' +
+            '<div><b>' + esc(r.title) + '</b><small style="display:block;color:var(--mut)">' + (r.type === 'income' ? '+' : '−') + curSym() + fmtN(r.amount) + (posted ? (isEn ? ' · Posted ✓' : ' · পোস্ট করা হয়েছে ✓') : '') + '</small></div>' +
+            '<button class="btn-danger" data-del-rec="' + r.id + '" style="width:auto;height:36px;padding:0 12px;border-radius:12px;font-size:12.5px">' + T('delete') + '</button></div>';
+        }).join('')
+      : '<div class="empty" style="padding:18px 8px">' + (isEn ? 'No monthly recurring items yet.' : 'এখনো কোনো মাসিক রিকারিং এন্ট্রি নেই।') + '</div>';
+
+    openModal(
+      '<h3 class="m-title">' + (isEn ? 'Monthly Recurring' : 'মাসিক রিকারিং এন্ট্রি') + '</h3>' +
+      '<p class="m-sub">' + (isEn ? 'Save fixed monthly bills or retainer clients & post them in 1 tap.' : 'প্রতি মাসের ফিক্সড বিল বা রিটেইনার ক্লায়েন্ট সেভ রাখুন, ১ ট্যাপে পোস্ট হবে।') + '</p>' +
+      '<div class="p-sec"><div class="chips chips-tight" id="recType">' +
+      '<button class="chip on" data-rt="expense">' + T('expense') + '</button>' +
+      '<button class="chip" data-rt="income">' + T('income') + '</button></div></div>' +
+      '<div class="p-sec"><input class="field" id="recTitle" placeholder="' + (isEn ? 'e.g. ChatGPT Plus, Hosting, Retainer' : 'যেমন: ইন্টারনেট বিল, হোস্টিং, রিটেইনার') + '"></div>' +
+      '<div class="p-sec"><div class="row-inline"><input class="field" id="recAmt" type="number" min="1" placeholder="' + (isEn ? 'Amount (' + curSym() + ')' : 'টাকার পরিমাণ (' + curSym() + ')') + '"><button class="btn-dark sm" id="recAddBtn">' + T('add') + '</button></div></div>' +
+      '<div id="recListWrap" style="margin-top:14px">' + rowsHtml + '</div>',
+      function (root) {
+        var rType = 'expense';
+        $('#recType', root).onclick = function (e) {
+          var b = e.target.closest('[data-rt]'); if (!b) return;
+          rType = b.dataset.rt;
+          $$('#recType .chip', root).forEach(function (c) { c.classList.toggle('on', c === b); });
+        };
+        $('#recAddBtn', root).onclick = function () {
+          var title = $('#recTitle', root).value.trim();
+          var amt = Number($('#recAmt', root).value);
+          if (!title || !(amt > 0)) { toast(isEn ? 'Enter title and amount' : 'নাম ও পরিমাণ লিখুন'); return; }
+          var firstSvc = (activeServices()[0] || {}).id || null;
+          Store.addRecurring({ title: title, type: rType, amount: amt, svc: firstSvc, cat: 'tools' }).then(function () {
+            toast(title + ' ✓');
+            closeModal();
+            setTimeout(openRecurringManager, 200);
+          });
+        };
+        $('#recListWrap', root).onclick = function (e) {
+          var b = e.target.closest('[data-del-rec]'); if (!b) return;
+          Store.deleteRecurring(b.dataset.delRec).then(function () {
+            toast(T('deleted'));
+            closeModal();
+            setTimeout(openRecurringManager, 200);
+          });
+        };
+      });
+  }
+
   function openGoalSettings() {
     var isEn = window.I18n && window.I18n.lang() === 'en';
     var goal = (S.settings && S.settings.monthlyGoal) || '';
@@ -1662,6 +1757,7 @@
       '<div class="set-list">' +
       '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>' + esc(T('googleSheetDb')) + '</b><small>' + esc(cloudSub) + '</small></span></button>' +
       '<button class="set-item" id="setGoals"><span class="si-ic">' + ic('spark', 18) + '</span><span><b>' + (isEn ? 'Monthly Goals & Budget' : 'মাসিক লক্ষ্য ও বাজেট') + '</b><small>' + (S.settings && S.settings.monthlyGoal ? fmt$(S.settings.monthlyGoal) : (isEn ? 'Set income target & ad budget' : 'মাসিক আয়ের লক্ষ্য ও অ্যাড লিমিট সেট করুন')) + '</small></span></button>' +
+      '<button class="set-item" id="setRec"><span class="si-ic">' + ic('calendar', 18) + '</span><span><b>' + (isEn ? 'Monthly Recurring' : 'মাসিক রিকারিং এন্ট্রি') + '</b><small>' + ((S.recurring || []).length ? ((S.recurring || []).length + (isEn ? ' saved items' : 'টি সেভ করা আছে')) : (isEn ? 'Auto-post monthly bills & retainers' : 'মাসিক বিল ও রিটেইনার ১ ট্যাপে পোস্ট করুন')) + '</small></span></button>' +
       '<button class="set-item" id="setPin"><span class="si-ic">' + ic('lock', 18) + '</span><span><b>' + (isEn ? 'App PIN Lock' : 'অ্যাপ পিন লক') + '</b><small>' + ((function(){ try { return localStorage.getItem(PIN_KEY) ? (isEn ? 'Enabled (4-digit PIN)' : 'চালু আছে (৪-ডিজিট পিন)') : (isEn ? 'Protect app with passcode' : 'পিন দিয়ে অ্যাপ লক করুন'); } catch(e){ return ''; } })()) + '</small></span></button>' +
       '<button class="set-item" id="setUpdate"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>' + esc(T('appUpdate', { v: window.APP_VERSION || '1.0.0' })) + '</b><small id="setUpdateSub">' + esc(T('checkInstallUpdate')) + '</small></span></button>' +
       '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>' + esc(T('installApp')) + '</b><small>' + installSub + '</small></span></button>' +
@@ -1689,6 +1785,7 @@
         };
         $('#setCloud', root).onclick = function () { closeModal(); setTimeout(openCloudSettings, 200); };
         $('#setGoals', root).onclick = function () { closeModal(); setTimeout(openGoalSettings, 200); };
+        $('#setRec', root).onclick = function () { closeModal(); setTimeout(openRecurringManager, 200); };
         $('#setPin', root).onclick = function () { closeModal(); setTimeout(openPinSettings, 200); };
         $('#setUpdate', root).onclick = function () {
           if (!window.AppUpdater) { toast('আপডেটার পাওয়া যায়নি'); return; }
@@ -1823,6 +1920,14 @@
     if (b) b.click();
     var sheet = $('#s-home .list-sheet');
     if (sheet) sheet.scrollIntoView({ behavior: 'smooth' });
+  });
+  if ($('#recPill')) $('#recPill').addEventListener('click', function () {
+    vib([10, 30, 12]);
+    var isNow = ui.month.y === now.getFullYear() && ui.month.m === now.getMonth();
+    var dStr = isNow ? todayISO() : curKey() + '-01';
+    Store.postRecurringForMonth(curKey(), dStr).then(function (n) {
+      if (n > 0) toast(window.I18n && window.I18n.lang() === 'en' ? (n + ' recurring entries posted!') : (n + 'টি রিকারিং এন্ট্রি পোস্ট হয়েছে!'));
+    });
   });
 
   // Pull-to-Sync on Home (Google Sheets live refresh)
