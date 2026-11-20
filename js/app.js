@@ -1730,17 +1730,62 @@
       });
   }
 
+  function applyAccent() {
+    var acc = (S && S.settings && S.settings.accent) || 'emerald';
+    if (acc === 'emerald') document.documentElement.removeAttribute('data-accent');
+    else document.documentElement.setAttribute('data-accent', acc);
+  }
+
+  function exportMonthlyStatement() {
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var list = monthEntries().slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var t = totals(list);
+    var mLbl = getMonths()[ui.month.m] + ' ' + ui.month.y;
+    var brand = (S.profile && S.profile.name) ? (S.profile.name + ' · ' + T('appTitle')) : T('appTitle');
+    var rows = list.map(function (e) {
+      var tx = txText(e);
+      return '<tr><td>' + esc(e.date) + '</td><td>' + esc(e.type === 'income' ? T('income') : T('expense')) + (e.status === 'due' ? ' (' + T('due') + ')' : '') + '</td><td>' + esc(tx.title) + (tx.sub ? ' — ' + esc(tx.sub) : '') + '</td><td class="r">' + esc(fmtTx(e.amount, e.type)) + '</td></tr>';
+    }).join('') || '<tr><td colspan="4">' + T('noTxTitle') + '</td></tr>';
+
+    var html = '<h1>' + esc(brand) + '</h1>' +
+      '<div class="ps-sub">' + (isEn ? 'Monthly Financial Statement — ' : 'মাসিক আর্থিক স্টেটমেন্ট — ') + esc(mLbl) + '</div>' +
+      '<div class="ps-grid">' +
+      '<div class="ps-box"><small>' + T('totalIncome') + '</small><b>' + fmt$(t.inc) + '</b></div>' +
+      '<div class="ps-box"><small>' + T('totalExpense') + '</small><b>' + fmt$(t.exp) + '</b></div>' +
+      '<div class="ps-box"><small>' + T('adLabel') + '</small><b>' + fmt$(t.ads) + '</b></div>' +
+      '<div class="ps-box"><small>' + T('netLabel') + '</small><b>' + fmt$(t.net, true) + '</b></div>' +
+      '</div>' +
+      '<table><thead><tr><th>' + T('date') + '</th><th>' + T('type') + '</th><th>' + (isEn ? 'Description' : 'বিবরণ') + '</th><th class="r">' + (isEn ? 'Amount' : 'পরিমাণ') + '</th></tr></thead><tbody>' + rows + '</tbody></table>';
+
+    var ps = $('#printStatement');
+    if (ps) ps.innerHTML = html;
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+      var fullDoc = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(brand) + ' — ' + esc(mLbl) + '</title><style>body{font-family:system-ui,sans-serif;padding:24px;color:#111}h1{margin:0 0 4px}.ps-sub{color:#666;margin-bottom:18px}.ps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}.ps-box{border:1px solid #ddd;border-radius:10px;padding:10px}.ps-box small{display:block;color:#666;font-size:11px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #e5e5e5;padding:8px 6px;text-align:left}th{background:#f6f6f6}.r{text-align:right}</style></head><body>' + html + '</body></html>';
+      downloadFile(fullDoc, 'hisab-statement-' + curKey() + '.html', 'text/html;charset=utf-8');
+      toast(isEn ? 'Statement saved! Open in browser to print/PDF.' : 'স্টেটমেন্ট সেভ হয়েছে! ব্রাউজারে খুলে PDF/প্রিন্ট করুন।');
+    } else {
+      window.print();
+    }
+  }
+
   function openSettings() {
     var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
     var installSub = standalone ? 'অ্যাপ হিসেবে চলছে' : deferredInstall ? 'হোম স্ক্রিনে অ্যাপ হিসেবে রাখুন' : isIOS ? 'Safari-তে Share → “Add to Home Screen”' : 'ব্রাউজার মেনু → “Install app / Add to Home screen”';
     var cur = (S.settings && S.settings.currency) || 'BDT';
     var lang = (S.settings && S.settings.lang) || 'bn';
+    var acc = (S.settings && S.settings.accent) || 'emerald';
     var cloudCfg = Store.getCloudConfig();
     var cloudConnected = !!cloudCfg.url;
     var cloudSub = cloudConnected ? T('connectedSync', { t: fmtSyncTime(cloudCfg.lastSync) }) : T('setupCloudSub');
 
     var isEn = window.I18n && window.I18n.lang() === 'en';
+    var accOpts = [
+      { id: 'emerald', col: '#3DDC84' },
+      { id: 'gold', col: '#FFE14A' },
+      { id: 'cyan', col: '#2AA8FF' },
+      { id: 'violet', col: '#A855F7' }
+    ];
     openModal(
       '<div class="brand-head"><img src="icons/logo.svg" alt="Logo"><div><h3>' + esc(T('appTitle')) + '</h3><span>v' + esc(window.APP_VERSION || '1.0.0') + ' · ' + esc(T('settings')) + '</span></div></div>' +
       '<div class="p-sec"><label for="profName">' + esc(T('yourName')) + '</label><div class="row-inline"><input class="field" id="profName" value="' + esc(S.profile.name || '') + '" placeholder="' + esc(T('enterName')) + '"><button class="btn-dark sm" id="openAvBtn">' + (isEn ? 'Avatar' : 'অ্যাভাটার') + '</button></div></div>' +
@@ -1754,12 +1799,17 @@
       '<button class="chip ' + (cur === 'BDT' ? 'on' : '') + '" data-c="BDT">৳ টাকা (BDT)</button>' +
       '<button class="chip ' + (cur === 'USD' ? 'on' : '') + '" data-c="USD">$ USD ($)</button>' +
       '</div></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Accent Theme' : 'অ্যাকসেন্ট থিম') + '</span>' +
+      '<div class="color-row" id="accRow" style="margin-top:6px">' +
+      accOpts.map(function (o) { return '<button class="color-dot' + (o.id === acc ? ' on' : '') + '" data-acc="' + o.id + '" style="background:' + o.col + ';width:34px;height:34px" aria-label="' + o.id + '"></button>'; }).join('') +
+      '</div></div>' +
       '<div class="set-list">' +
       '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>' + esc(T('googleSheetDb')) + '</b><small>' + esc(cloudSub) + '</small></span></button>' +
       '<button class="set-item" id="setGoals"><span class="si-ic">' + ic('spark', 18) + '</span><span><b>' + (isEn ? 'Monthly Goals & Budget' : 'মাসিক লক্ষ্য ও বাজেট') + '</b><small>' + (S.settings && S.settings.monthlyGoal ? fmt$(S.settings.monthlyGoal) : (isEn ? 'Set income target & ad budget' : 'মাসিক আয়ের লক্ষ্য ও অ্যাড লিমিট সেট করুন')) + '</small></span></button>' +
       '<button class="set-item" id="setRec"><span class="si-ic">' + ic('calendar', 18) + '</span><span><b>' + (isEn ? 'Monthly Recurring' : 'মাসিক রিকারিং এন্ট্রি') + '</b><small>' + ((S.recurring || []).length ? ((S.recurring || []).length + (isEn ? ' saved items' : 'টি সেভ করা আছে')) : (isEn ? 'Auto-post monthly bills & retainers' : 'মাসিক বিল ও রিটেইনার ১ ট্যাপে পোস্ট করুন')) + '</small></span></button>' +
       '<button class="set-item" id="setPin"><span class="si-ic">' + ic('lock', 18) + '</span><span><b>' + (isEn ? 'App PIN Lock' : 'অ্যাপ পিন লক') + '</b><small>' + ((function(){ try { return localStorage.getItem(PIN_KEY) ? (isEn ? 'Enabled (4-digit PIN)' : 'চালু আছে (৪-ডিজিট পিন)') : (isEn ? 'Protect app with passcode' : 'পিন দিয়ে অ্যাপ লক করুন'); } catch(e){ return ''; } })()) + '</small></span></button>' +
       '<button class="set-item" id="setUpdate"><span class="si-ic">' + ic('refresh', 18) + '</span><span><b>' + esc(T('appUpdate', { v: window.APP_VERSION || '1.0.0' })) + '</b><small id="setUpdateSub">' + esc(T('checkInstallUpdate')) + '</small></span></button>' +
+      '<button class="set-item" id="setPdf"><span class="si-ic">' + ic('file', 18) + '</span><span><b>' + (isEn ? 'PDF / Print Statement' : 'PDF / প্রিন্ট মাসিক স্টেটমেন্ট') + '</b><small>' + (isEn ? 'Clean A4 monthly report for ' : 'ক্লিন A4 মাসিক স্টেটমেন্ট · ') + esc(getMonths()[ui.month.m]) + '</small></span></button>' +
       '<button class="set-item" id="setInstall"><span class="si-ic">' + ic('download', 18) + '</span><span><b>' + esc(T('installApp')) + '</b><small>' + installSub + '</small></span></button>' +
       '<button class="set-item" id="setBackup"><span class="si-ic">' + ic('file', 18) + '</span><span><b>' + esc(T('backupDownload')) + '</b><small>' + esc(T('backupDownloadSub')) + '</small></span></button>' +
       '<button class="set-item" id="setRestore"><span class="si-ic">' + ic('upload', 18) + '</span><span><b>' + esc(T('backupRestore')) + '</b><small>' + esc(T('backupRestoreSub')) + '</small></span></button>' +
@@ -1787,6 +1837,17 @@
         $('#setGoals', root).onclick = function () { closeModal(); setTimeout(openGoalSettings, 200); };
         $('#setRec', root).onclick = function () { closeModal(); setTimeout(openRecurringManager, 200); };
         $('#setPin', root).onclick = function () { closeModal(); setTimeout(openPinSettings, 200); };
+        $('#setPdf', root).onclick = function () { closeModal(); setTimeout(exportMonthlyStatement, 220); };
+        $('#accRow', root).onclick = function (e) {
+          var b = e.target.closest('[data-acc]'); if (!b) return;
+          vib(6);
+          var nextAcc = b.dataset.acc;
+          $$('#accRow .color-dot', root).forEach(function (d) { d.classList.toggle('on', d === b); });
+          Store.setSettings({ accent: nextAcc }).then(function () {
+            applyAccent();
+            toast(isEn ? 'Theme updated!' : 'থিম আপডেট হয়েছে!');
+          });
+        };
         $('#setUpdate', root).onclick = function () {
           if (!window.AppUpdater) { toast('আপডেটার পাওয়া যায়নি'); return; }
           var sub = $('#setUpdateSub', root);
@@ -2038,6 +2099,7 @@
   Store.init().then(function (state) {
     S = state;
     if (window.I18n) window.I18n.applyDOM();
+    applyAccent();
     paintIcons();
     paintAvatar();
     initPrivacy();
@@ -2059,6 +2121,7 @@
     Store.subscribe(function (st) {
       S = st;
       if (window.I18n) window.I18n.applyDOM();
+      applyAccent();
       paintAvatar();
       renderTab(ui.tab, ui.tab === 'home');
       if ($('#ctxPanel').classList.contains('open')) renderCtx();

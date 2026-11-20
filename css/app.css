@@ -27,6 +27,7 @@
   --success: #16D12C;
   --inc: #3DDC84;
   --exp: #FF8A4C;
+  --accent-glow: rgba(43, 232, 181, .10);
   /* outside the phone frame on desktop */
   --desk: #E8E8E5;
   /* type */
@@ -114,7 +115,7 @@ svg { display: block; }
 .home-top {
   padding: calc(var(--sat) + 16px) 20px 22px;
   background:
-    radial-gradient(90% 60% at 0% 0%, rgba(43, 232, 181, .10), transparent 70%),
+    radial-gradient(90% 60% at 0% 0%, var(--accent-glow), transparent 70%),
     radial-gradient(70% 50% at 100% 10%, rgba(42, 168, 255, .08), transparent 70%),
     var(--app-bg);
 }
@@ -779,6 +780,29 @@ body.privacy-on .d-amt {
   white-space: nowrap; animation: toastIn .45s var(--ease);
 }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -20px) scale(.9); } }
+
+/* ---------- Accent Themes ---------- */
+html[data-accent="gold"] { --pos-d: #FFE14A; --inc: #FFE14A; --accent-glow: rgba(255, 225, 74, .14); }
+html[data-accent="cyan"] { --pos-d: #2AA8FF; --inc: #2AA8FF; --accent-glow: rgba(42, 168, 255, .14); }
+html[data-accent="violet"] { --pos-d: #A855F7; --inc: #A855F7; --accent-glow: rgba(168, 85, 247, .16); }
+
+/* ---------- Print / PDF Statement ---------- */
+#printStatement { display: none; }
+@media print {
+  body { background: #fff !important; color: #111 !important; display: block !important; }
+  .app { display: none !important; }
+  #printStatement { display: block !important; padding: 24px; font-family: var(--font); color: #111; }
+  #printStatement h1 { margin: 0 0 4px; font-size: 24px; }
+  #printStatement .ps-sub { color: #666; font-size: 13px; margin-bottom: 18px; }
+  #printStatement .ps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  #printStatement .ps-box { border: 1px solid #ddd; border-radius: 10px; padding: 10px 12px; }
+  #printStatement .ps-box small { display: block; color: #666; font-size: 11px; }
+  #printStatement .ps-box b { font-size: 16px; }
+  #printStatement table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  #printStatement th, #printStatement td { border-bottom: 1px solid #e5e5e5; padding: 8px 6px; text-align: left; }
+  #printStatement th { font-weight: 800; background: #f6f6f6; }
+  #printStatement td.r, #printStatement th.r { text-align: right; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
