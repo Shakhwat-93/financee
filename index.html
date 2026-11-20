@@ -67,6 +67,11 @@
           <div class="goal-track"><i id="goalFill"></i></div>
           <div class="goal-sub" id="goalSub"></div>
         </button>
+
+        <button class="due-pill" id="duePill" hidden data-st>
+          <span id="dueLbl">বাকি পেমেন্ট</span>
+          <b id="dueVal">৳0</b>
+        </button>
       </div>
 
       <div class="list-sheet" data-st>
@@ -83,6 +88,7 @@
           <button class="chip on" data-f="all" data-i18n="all">সব</button>
           <button class="chip" data-f="income" data-i18n="income">আয়</button>
           <button class="chip" data-f="expense" data-i18n="expense">খরচ</button>
+          <button class="chip" data-f="due" data-i18n="due">বাকি</button>
         </div>
         <div id="txList"></div>
       </div>

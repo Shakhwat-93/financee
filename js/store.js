@@ -262,6 +262,7 @@
       client: income ? (d.client || null) : null,
       cat: income ? null : (d.cat || 'other'),
       forSvc: income ? null : (d.forSvc || null),
+      status: (income && d.status === 'due') ? 'due' : 'paid',
       note: String(d.note || '')
     };
   }

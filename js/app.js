@@ -121,12 +121,17 @@
   var activeServices = function () { return S.services.filter(function (s) { return s.active; }); };
 
   function totals(list) {
-    var inc = 0, exp = 0, ads = 0;
+    var inc = 0, exp = 0, ads = 0, due = 0;
     list.forEach(function (e) {
-      if (e.type === 'income') inc += e.amount;
-      else { exp += e.amount; if (cat(e.cat).isAd) ads += e.amount; }
+      if (e.type === 'income') {
+        if (e.status === 'due') due += e.amount;
+        else inc += e.amount;
+      } else {
+        exp += e.amount;
+        if (cat(e.cat).isAd) ads += e.amount;
+      }
     });
-    return { inc: round2(inc), exp: round2(exp), ads: round2(ads), net: round2(inc - exp) };
+    return { inc: round2(inc), exp: round2(exp), ads: round2(ads), due: round2(due), net: round2(inc - exp) };
   }
   var monthEntries = function (k) { return S.entries.filter(function (e) { return inMonth(e, k); }); };
 
@@ -244,9 +249,10 @@
 
   function txRowHTML(e) {
     var t = txText(e);
+    var isDue = e.type === 'income' && e.status === 'due';
     return '<button class="tx" data-tx="' + e.id + '">' + txIconHTML(e) +
-      '<span class="tx-main"><b>' + esc(t.title) + '</b><small>' + esc(t.sub || dayLabel(e.date)) + '</small></span>' +
-      '<span class="tx-amt ' + (e.type === 'income' ? 'pos' : '') + '">' + fmtTx(e.amount, e.type) + '</span></button>';
+      '<span class="tx-main"><b>' + esc(t.title) + (isDue ? '<span class="due-tag">' + T('due') + '</span>' : '') + '</b><small>' + esc(t.sub || dayLabel(e.date)) + '</small></span>' +
+      '<span class="tx-amt ' + (e.type === 'income' && !isDue ? 'pos' : '') + '">' + fmtTx(e.amount, e.type) + '</span></button>';
   }
 
   function renderMonthLabels() {
@@ -317,13 +323,29 @@
       gCard.hidden = true;
     }
 
+    // বাকি / Pending Due পিল (সব মাসের মোট বাকি)
+    var dp = $('#duePill');
+    if (dp) {
+      var allDue = S.entries.reduce(function (a, e) { return (e.type === 'income' && e.status === 'due') ? a + e.amount : a; }, 0);
+      if (allDue > 0) {
+        dp.hidden = false;
+        $('#dueLbl').textContent = isEn ? 'Pending Due Payments' : 'ক্লায়েন্টদের কাছে বাকি';
+        $('#dueVal').textContent = fmt$(round2(allDue));
+      } else {
+        dp.hidden = true;
+      }
+    }
+
     renderTxList();
   }
 
   function renderTxList() {
     var q = ui.q.trim().toLowerCase();
-    var list = monthEntries().filter(function (e) {
-      if (ui.txFilter !== 'all' && e.type !== ui.txFilter) return false;
+    var baseList = ui.txFilter === 'due'
+      ? S.entries.filter(function (e) { return e.type === 'income' && e.status === 'due'; })
+      : monthEntries();
+    var list = baseList.filter(function (e) {
+      if (ui.txFilter !== 'all' && ui.txFilter !== 'due' && e.type !== ui.txFilter) return false;
       if (!q) return true;
       var t = txText(e);
       return (t.title + ' ' + t.sub + ' ' + (svc(e.svc) || {}).name).toLowerCase().indexOf(q) >= 0;
@@ -331,11 +353,11 @@
 
     var box = $('#txList');
     if (!S.entries.length) {
-      box.innerHTML = '<div class="empty"><b>খাতা এখনো খালি</b>উপরের “আয়” বা “খরচ” বাটনে চাপ দিয়ে প্রথম হিসাবটা লিখুন।</div>';
+      box.innerHTML = '<div class="empty"><b>' + T('noTxTitle') + '</b>' + T('noTxSub') + '</div>';
       return;
     }
     if (!list.length) {
-      box.innerHTML = '<div class="empty"><b>' + (q ? 'কিছু পাওয়া যায়নি' : 'এই মাসে কোনো লেনদেন নেই') + '</b>' + (q ? 'অন্য নাম দিয়ে খুঁজে দেখুন।' : 'নতুন এন্ট্রি দিলে এখানে দেখাবে।') + '</div>';
+      box.innerHTML = '<div class="empty"><b>' + (q ? T('noMatch') : T('noTxTitle')) + '</b></div>';
       return;
     }
     var html = '', last = '';
@@ -702,7 +724,7 @@
     E = Object.assign({
       type: 'income', expr: '', prev: '',
       svc: first ? first.id : null, client: null,
-      cat: 'fb', forSvc: null,
+      cat: 'fb', forSvc: null, status: 'paid',
       date: (ui.month.y === now.getFullYear() && ui.month.m === now.getMonth()) ? todayISO() : monthKey(ui.month.y, ui.month.m) + '-01',
       note: '', editId: null
     }, opts || {});
@@ -715,7 +737,7 @@
     if (!e) return;
     closeModal();
     setTimeout(function () {
-      openEntry({ type: e.type, expr: String(e.amount), svc: e.svc, client: e.client, cat: e.cat || 'fb', forSvc: e.forSvc, date: e.date, note: e.note, editId: e.id });
+      openEntry({ type: e.type, expr: String(e.amount), svc: e.svc, client: e.client, cat: e.cat || 'fb', forSvc: e.forSvc, status: e.status || 'paid', date: e.date, note: e.note, editId: e.id });
     }, 200);
   }
 
@@ -939,7 +961,7 @@
     if (E.type === 'income' && !svc(E.svc)) { springBack(); openCtx(); toast('কোন কাজের পেমেন্ট, সেটা বেছে নিন'); return; }
     var data = {
       type: E.type, amount: amount, date: E.date, note: (E.note || '').trim(),
-      svc: E.svc, client: E.client, cat: E.cat, forSvc: E.forSvc
+      svc: E.svc, client: E.client, cat: E.cat, forSvc: E.forSvc, status: E.status || 'paid'
     };
     var p = E.editId ? Store.updateEntry(E.editId, data) : Store.addEntry(data);
     var wasEdit = !!E.editId;
@@ -1011,15 +1033,20 @@
       '</div><div style="margin-top:8px"><input class="field" type="date" id="ctxDate" value="' + E.date + '"></div></div>';
     var noteSec = '<div class="p-sec"><label for="ctxNote">নোট (ঐচ্ছিক)</label><input class="field" id="ctxNote" value="' + esc(E.note) + '" placeholder="' + (E.type === 'income' ? 'যেমন: ২টা রিল, অ্যাডভান্স ৫০%' : 'যেমন: ৩ দিনের ক্যাম্পেইন') + '"></div>';
     var html;
+    var isEn = window.I18n && window.I18n.lang() === 'en';
     if (E.type === 'income') {
-      html = '<h3 class="p-title">কিসের পেমেন্ট?</h3>' +
-        '<div class="p-sec"><span class="p-lbl">কাজের ধরন</span><div class="opt-chips">' +
+      html = '<h3 class="p-title">' + T('whatPayment') + '</h3>' +
+        '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Payment Status' : 'পেমেন্ট স্ট্যাটাস') + '</span><div class="opt-chips">' +
+        optHTML('data-st', 'paid', E.status !== 'due', isEn ? 'Paid ✓' : 'পরিশোধিত ✓') +
+        optHTML('data-st', 'due', E.status === 'due', isEn ? 'Pending Due ⏳' : 'বাকি আছে ⏳') +
+        '</div></div>' +
+        '<div class="p-sec"><span class="p-lbl">' + T('workType') + '</span><div class="opt-chips">' +
         activeServices().map(function (s) { return optHTML('data-svc', s.id, E.svc === s.id, s.name, s.color, svcIcon(s)); }).join('') +
         '</div></div>' +
-        '<div class="p-sec"><span class="p-lbl">ক্লায়েন্ট</span><div class="opt-chips">' +
-        optHTML('data-cli', '', !E.client, 'কেউ না') +
+        '<div class="p-sec"><span class="p-lbl">' + T('client') + '</span><div class="opt-chips">' +
+        optHTML('data-cli', '', !E.client, T('none')) +
         S.clients.map(function (c) { return optHTML('data-cli', c.id, E.client === c.id, c.name, c.color); }).join('') +
-        '</div><div class="row-inline" style="margin-top:10px"><input class="field" id="ctxNewClient" placeholder="নতুন ক্লায়েন্টের নাম"><button class="btn-dark sm" id="ctxAddClient">যোগ</button></div></div>' +
+        '</div><div class="row-inline" style="margin-top:10px"><input class="field" id="ctxNewClient" placeholder="' + esc(T('newClientName')) + '"><button class="btn-dark sm" id="ctxAddClient">' + T('add') + '</button></div></div>' +
         dateSec + noteSec;
     } else {
       html = '<h3 class="p-title">কিসের খরচ?</h3>' +
@@ -1044,6 +1071,7 @@
       if (b.hasAttribute('data-cat')) E.cat = b.getAttribute('data-cat');
       if (b.hasAttribute('data-for')) E.forSvc = b.getAttribute('data-for') || null;
       if (b.hasAttribute('data-date')) E.date = b.getAttribute('data-date');
+      if (b.hasAttribute('data-st')) E.status = b.getAttribute('data-st');
       E.note = ($('#ctxNote') || {}).value || E.note;
       renderCtx();
       return;
@@ -1187,17 +1215,37 @@
     var e = S.entries.find(function (x) { return x.id === id; });
     if (!e) return;
     var isEn = window.I18n && window.I18n.lang() === 'en';
+    var isDue = e.type === 'income' && e.status === 'due';
     var t = txText(e), s = svc(e.svc), c = cli(e.client), k = e.type === 'expense' ? cat(e.cat) : null, f = e.forSvc && svc(e.forSvc);
-    var rows = [[T('type'), e.type === 'income' ? T('income') : T('expense')], [T('date'), fmtDate(e.date)]];
+    var rows = [[T('type'), e.type === 'income' ? (isDue ? (isEn ? 'Pending Due ⏳' : 'বাকি পেমেন্ট ⏳') : T('income')) : T('expense')], [T('date'), fmtDate(e.date)]];
     if (e.type === 'income') { rows.push([T('work'), s ? s.name : '—']); rows.push([T('client'), c ? c.name : '—']); }
     else { rows.push([T('expenseType'), k.name]); rows.push([T('forWhichSvc').replace('?', ''), f ? f.name : T('generalExpense')]); }
     if (e.note) rows.push([T('note'), e.note]);
+    var cleanPhone = c && c.phone ? String(c.phone).replace(/[^0-9+]/g, '') : '';
+    var remMsg = isEn
+      ? 'Hello ' + (c ? c.name : '') + ', gentle reminder regarding pending payment of ' + curSym() + fmtN(e.amount) + (s ? ' for ' + s.name : '') + '. Thank you!'
+      : 'আসসালামু আলাইকুম ' + (c ? c.name : '') + ', ' + (s ? s.name + '-এর ' : '') + curSym() + fmtN(e.amount) + ' বাকি পেমেন্টটির কথা একটু মনে করিয়ে দিলাম। ধন্যবাদ!';
+    var waRem = 'https://wa.me/' + (cleanPhone ? cleanPhone.replace(/^\+/, '').replace(/^0/, '880') : '') + '?text=' + encodeURIComponent(remMsg);
+
     openModal(
-      '<div class="d-head">' + txIconHTML(e) + '<div class="d-amt ' + (e.type === 'income' ? 'pos' : '') + '">' + (e.type === 'income' ? '+' : '−') + curSym() + fmtN(e.amount) + '</div><div class="d-title">' + esc(t.title) + '</div></div>' +
+      '<div class="d-head">' + txIconHTML(e) + '<div class="d-amt ' + (e.type === 'income' && !isDue ? 'pos' : '') + '">' + (e.type === 'income' ? '+' : '−') + curSym() + fmtN(e.amount) + '</div><div class="d-title">' + esc(t.title) + (isDue ? '<span class="due-tag">' + T('due') + '</span>' : '') + '</div></div>' +
       '<div class="d-rows">' + rows.map(function (r) { return '<div><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'; }).join('') + '</div>' +
+      (isDue ? '<div style="margin-top:12px"><button class="btn-success" id="markPaidBtn">' + (isEn ? '✓ Mark as Paid' : '✓ পরিশোধিত করুন (Mark Paid)') + '</button></div>' +
+        '<div style="margin-top:8px"><a class="wa-btn" style="width:100%" href="' + waRem + '" target="_blank" rel="noopener">' + (isEn ? 'Send WhatsApp Reminder' : 'WhatsApp পেমেন্ট রিমাইন্ডার পাঠান') + '</a></div>' : '') +
       '<div class="btn-row" style="margin-top:12px"><button class="btn-light" id="rcptBtn" style="height:46px;font-size:13.5px">' + (isEn ? 'Share Receipt' : 'রসিদ শেয়ার') + '</button><button class="btn-light" id="dupBtn" style="height:46px;font-size:13.5px">' + (isEn ? 'Duplicate' : 'ডুপ্লিকেট') + '</button></div>' +
       '<div class="btn-row" style="margin-top:10px"><button class="btn-danger" id="delBtn">' + T('delete') + '</button><button class="btn-dark" id="editBtn">' + T('edit') + '</button></div>',
       function (root) {
+        var mp = $('#markPaidBtn', root);
+        if (mp) {
+          mp.onclick = function () {
+            vib([12, 30, 16]);
+            Store.updateEntry(id, Object.assign({}, e, { status: 'paid' })).then(function () {
+              closeModal();
+              toast(isEn ? 'Marked as Paid!' : 'পেমেন্ট পরিশোধিত হিসেবে সেভ হয়েছে!');
+              setTimeout(burstConfetti, 180);
+            });
+          };
+        }
         $('#rcptBtn', root).onclick = function () { vib(8); shareReceiptPNG(e); };
         $('#dupBtn', root).onclick = function () {
           closeModal();
@@ -1770,6 +1818,12 @@
   $('#avatarBtn').addEventListener('click', openSettings);
   if ($('#privacyBtn')) $('#privacyBtn').addEventListener('click', togglePrivacy);
   if ($('#goalCard')) $('#goalCard').addEventListener('click', openGoalSettings);
+  if ($('#duePill')) $('#duePill').addEventListener('click', function () {
+    var b = $('[data-f="due"]');
+    if (b) b.click();
+    var sheet = $('#s-home .list-sheet');
+    if (sheet) sheet.scrollIntoView({ behavior: 'smooth' });
+  });
 
   // Pull-to-Sync on Home (Google Sheets live refresh)
   (function () {
