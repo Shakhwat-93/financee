@@ -84,6 +84,7 @@
     eye: '<path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
     eyeOff: '<path d="M17.9 17.9A10.6 10.6 0 0 1 12 18.5C5.8 18.5 2 12 2 12a18 18 0 0 1 5-5.3M9.9 5.3A10 10 0 0 1 12 5.5c6.2 0 10 6.5 10 6.5a18 18 0 0 1-2.5 3.4M3 3l18 18"/>',
     lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+    bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
     copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>',
     refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4.5v4h-4"/>',
     user: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1-3.7 4-5.8 7.5-5.8s6.5 2.1 7.5 5.8"/>',
@@ -349,7 +350,22 @@
       }
     }
 
+    renderAutoCatchReview();
     renderTxList();
+  }
+
+  function renderAutoCatchReview() {
+    var box = $('#acReview');
+    if (!box || !window.AutoCatchEngine) return;
+    var q = window.AutoCatchEngine.getReviewQueue();
+    if (!q.length) { box.hidden = true; box.innerHTML = ''; return; }
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    box.hidden = false;
+    box.innerHTML = q.slice(0, 3).map(function (ev) {
+      var sign = ev.type === 'income' ? '+' : '−';
+      return '<div class="ac-item"><span><b>⚡ ' + esc(ev.source) + ' ' + sign + curSym() + fmtN(ev.amount) + '</b><small>' + esc(ev.actionLabel || '') + '</small></span>' +
+        '<div class="ac-btns"><button class="ac-ok" data-ac-ok="' + esc(ev.id) + '">' + (isEn ? 'Save' : 'সেভ') + '</button><button class="ac-no" data-ac-no="' + esc(ev.id) + '">✕</button></div></div>';
+    }).join('');
   }
 
   function renderTxList() {
@@ -1768,6 +1784,80 @@
     }
   }
 
+  function openAutoCatchSettings() {
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var eng = window.AutoCatchEngine;
+    var cfg = eng ? eng.getConfig() : { enabled: true, autoPost: true, granted: false };
+    var native = eng && eng.isNative();
+    var badgeCls = !native ? ' warn' : (cfg.granted ? ' ok' : ' err');
+    var badgeTxt = !native
+      ? (isEn ? 'Android APK Required for Live Listener (Simulator Ready)' : 'লাইভ রিডিংয়ের জন্য Android APK লাগবে (টেস্টার চালু আছে)')
+      : (cfg.granted
+        ? (isEn ? 'Active · Notification Access Granted' : 'চালু আছে · নোটিফিকেশন পারমিশন OK')
+        : (isEn ? 'Permission Needed · Tap below to allow' : 'পারমিশন দেওয়া নেই · নিচের বাটনে চাপুন'));
+
+    openModal(
+      '<h3 class="m-title">' + (isEn ? 'Live Auto-Catch' : 'অটো নোটিফিকেশন ক্যাচ') + '</h3>' +
+      '<p class="m-sub">' + (isEn ? 'Automatically captures Cash In, Add Money & Cash Out from bKash, Nagad, Rocket, Upay & Bank notifications.' : 'bKash, Nagad, Rocket, Upay বা ব্যাংকের নোটিফিকেশন এলেই ক্যাশ ইন (আয়) ও ক্যাশ আউট (খরচ) অটোমেটিক সেভ হবে।') + '</p>' +
+      '<div class="cloud-badge' + badgeCls + '"><i></i><span>' + esc(badgeTxt) + '</span></div>' +
+      (native && !cfg.granted ? '<div style="margin-top:14px"><button class="btn-dark" id="acPermBtn">' + (isEn ? 'Grant Notification Access' : 'নোটিফিকেশন পারমিশন দিন') + '</button></div>' : '') +
+      '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Auto-Catch Status' : 'অটো-ক্যাচ চালু / বন্ধ') + '</span>' +
+      '<div class="chips chips-tight" id="acEnChips">' +
+      '<button class="chip ' + (cfg.enabled ? 'on' : '') + '" data-ace="1">' + (isEn ? 'Enabled' : 'চালু') + '</button>' +
+      '<button class="chip ' + (!cfg.enabled ? 'on' : '') + '" data-ace="0">' + (isEn ? 'Paused' : 'বন্ধ') + '</button>' +
+      '</div></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Save Mode' : 'সেভ করার ধরন') + '</span>' +
+      '<div class="chips chips-tight" id="acModeChips">' +
+      '<button class="chip ' + (cfg.autoPost ? 'on' : '') + '" data-acm="1">' + (isEn ? 'Auto-Save Instantly' : 'সরাসরি অটো-সেভ') + '</button>' +
+      '<button class="chip ' + (!cfg.autoPost ? 'on' : '') + '" data-acm="0">' + (isEn ? 'Review Before Save' : 'রিভিউ করে সেভ') + '</button>' +
+      '</div></div>' +
+      '<div class="p-sec"><span class="p-lbl">' + (isEn ? 'Live Simulator (Test Now)' : 'লাইভ টেস্ট করুন') + '</span>' +
+      '<div class="opt-chips" id="acTestBtns">' +
+      '<button class="opt plain" data-act="bk_in">bKash Cash In +1,000</button>' +
+      '<button class="opt plain" data-act="ng_out">Nagad Cash Out −500</button>' +
+      '<button class="opt plain" data-act="bnk_in">Bank Add Money +5,000</button>' +
+      '</div></div>' +
+      '<div class="cloud-steps"><b>' + (isEn ? 'Supported Apps:' : 'সাপোর্টেড অ্যাপ ও SMS:') + '</b><br>' +
+      'bKash, Nagad, Rocket, Upay, Islami Bank / CellFin, City Bank, BRAC, EBL, DBBL ও সব ব্যাংক SMS (বাংলা ও ইংরেজি)।</div>',
+      function (root) {
+        var pb = $('#acPermBtn', root);
+        if (pb) pb.onclick = function () {
+          eng.openPermissionSettings();
+          toast(isEn ? 'Enable "হিসাব খাতা Auto-Catch" then return' : '"হিসাব খাতা Auto-Catch" চালু করে ফিরে আসুন');
+        };
+        $('#acEnChips', root).onclick = function (e) {
+          var b = e.target.closest('[data-ace]'); if (!b) return;
+          vib(6);
+          $$('#acEnChips .chip', root).forEach(function (c) { c.classList.toggle('on', c === b); });
+          eng.setConfig({ enabled: b.dataset.ace === '1' });
+        };
+        $('#acModeChips', root).onclick = function (e) {
+          var b = e.target.closest('[data-acm]'); if (!b) return;
+          vib(6);
+          $$('#acModeChips .chip', root).forEach(function (c) { c.classList.toggle('on', c === b); });
+          eng.setConfig({ autoPost: b.dataset.acm === '1' });
+        };
+        $('#acTestBtns', root).onclick = function (e) {
+          var b = e.target.closest('[data-act]'); if (!b) return;
+          vib(8);
+          var samples = {
+            bk_in: ['bKash', 'You have received Cash In Tk 1,000.00 from 01711000000. Balance Tk 8,400.00'],
+            ng_out: ['Nagad', 'Cash Out Tk 500.00 to 01811000000 successful. New Balance Tk 3,200.00'],
+            bnk_in: ['City Bank', 'Add Money BDT 5,000.00 credited to your A/C. Available Balance BDT 25,000.00']
+          };
+          var sm = samples[b.dataset.act];
+          eng.simulateTest(sm[0], sm[1]).then(function () {
+            if (!eng.getConfig().autoPost) {
+              closeModal();
+              toast(isEn ? 'Sent to Home review queue!' : 'হোমে রিভিউ লিস্টে যোগ হয়েছে!');
+            }
+          }).catch(function (err) {
+            toast((err && err.message) || 'Test failed');
+          });
+        };
+      });
+  }
+
   function openSettings() {
     var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
@@ -1804,6 +1894,7 @@
       accOpts.map(function (o) { return '<button class="color-dot' + (o.id === acc ? ' on' : '') + '" data-acc="' + o.id + '" style="background:' + o.col + ';width:34px;height:34px" aria-label="' + o.id + '"></button>'; }).join('') +
       '</div></div>' +
       '<div class="set-list">' +
+      '<button class="set-item' + (window.AutoCatchEngine && window.AutoCatchEngine.getConfig().granted ? ' cloud-on' : '') + '" id="setAutoCatch"><span class="si-ic">' + ic('bell', 18) + '</span><span><b>' + (isEn ? 'Live Auto-Catch (bKash/Bank)' : 'অটো নোটিফিকেশন ক্যাচ (bKash/Bank)') + '</b><small>' + (isEn ? 'Auto-log Cash In & Cash Out from notifications' : 'নোটিফিকেশন থেকে অটো ক্যাশ ইন ও ক্যাশ আউট') + '</small></span></button>' +
       '<button class="set-item' + (cloudConnected ? ' cloud-on' : '') + '" id="setCloud"><span class="si-ic">' + ic('cloud', 18) + '</span><span><b>' + esc(T('googleSheetDb')) + '</b><small>' + esc(cloudSub) + '</small></span></button>' +
       '<button class="set-item" id="setGoals"><span class="si-ic">' + ic('spark', 18) + '</span><span><b>' + (isEn ? 'Monthly Goals & Budget' : 'মাসিক লক্ষ্য ও বাজেট') + '</b><small>' + (S.settings && S.settings.monthlyGoal ? fmt$(S.settings.monthlyGoal) : (isEn ? 'Set income target & ad budget' : 'মাসিক আয়ের লক্ষ্য ও অ্যাড লিমিট সেট করুন')) + '</small></span></button>' +
       '<button class="set-item" id="setRec"><span class="si-ic">' + ic('calendar', 18) + '</span><span><b>' + (isEn ? 'Monthly Recurring' : 'মাসিক রিকারিং এন্ট্রি') + '</b><small>' + ((S.recurring || []).length ? ((S.recurring || []).length + (isEn ? ' saved items' : 'টি সেভ করা আছে')) : (isEn ? 'Auto-post monthly bills & retainers' : 'মাসিক বিল ও রিটেইনার ১ ট্যাপে পোস্ট করুন')) + '</small></span></button>' +
@@ -1833,6 +1924,7 @@
             toast(T('langChanged'));
           });
         };
+        $('#setAutoCatch', root).onclick = function () { closeModal(); setTimeout(openAutoCatchSettings, 200); };
         $('#setCloud', root).onclick = function () { closeModal(); setTimeout(openCloudSettings, 200); };
         $('#setGoals', root).onclick = function () { closeModal(); setTimeout(openGoalSettings, 200); };
         $('#setRec', root).onclick = function () { closeModal(); setTimeout(openRecurringManager, 200); };
@@ -1991,6 +2083,22 @@
     });
   });
 
+  if ($('#acReview')) {
+    $('#acReview').addEventListener('click', function (e) {
+      var ok = e.target.closest('[data-ac-ok]');
+      if (ok && window.AutoCatchEngine) {
+        vib(10);
+        window.AutoCatchEngine.approveReview(ok.dataset.acOk);
+        return;
+      }
+      var no = e.target.closest('[data-ac-no]');
+      if (no && window.AutoCatchEngine) {
+        vib(5);
+        window.AutoCatchEngine.dismissReview(no.dataset.acNo);
+      }
+    });
+  }
+
   // Pull-to-Sync on Home (Google Sheets live refresh)
   (function () {
     var home = $('#s-home'), sy = 0, pulling = false;
@@ -2126,6 +2234,15 @@
       renderTab(ui.tab, ui.tab === 'home');
       if ($('#ctxPanel').classList.contains('open')) renderCtx();
     });
+    if (window.AutoCatchEngine) {
+      window.AutoCatchEngine.subscribe(renderAutoCatchReview);
+      window.AutoCatchEngine.init(function (ev) {
+        vib([10, 30, 14]);
+        var sign = ev.type === 'income' ? '+' : '−';
+        toast('⚡ ' + (ev.source || 'Auto') + ' ' + sign + curSym() + fmtN(ev.amount));
+        if (ev.type === 'income') setTimeout(burstConfetti, 180);
+      });
+    }
   });
 
   // অফলাইন ক্যাশ (PWA)
