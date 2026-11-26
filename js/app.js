@@ -108,6 +108,8 @@
   var now = new Date();
   var ui = {
     tab: 'home',
+    scope: 'month', // 'day' | 'month'
+    date: todayISO(),
     month: { y: now.getFullYear(), m: now.getMonth() },
     txFilter: 'all', q: '',
     clientFilter: 'all', cq: ''
@@ -116,6 +118,7 @@
   var monthKey = function (y, m) { return y + '-' + pad(m + 1); };
   var curKey = function () { return monthKey(ui.month.y, ui.month.m); };
   var inMonth = function (e, k) { return e.date.indexOf(k || curKey()) === 0; };
+  var dayEntries = function (d) { var target = d || ui.date; return S.entries.filter(function (e) { return e.date === target; }); };
   var svc = function (id) { return S.services.find(function (s) { return s.id === id; }); };
   var cli = function (id) { return S.clients.find(function (c) { return c.id === id; }); };
   var cat = function (id) { return S.expenseCats.find(function (c) { return c.id === id; }) || S.expenseCats[S.expenseCats.length - 1]; };
@@ -259,18 +262,47 @@
   function renderMonthLabels() {
     var lbl = getMonths()[ui.month.m] + ' ' + ui.month.y;
     $$('.month-lbl').forEach(function (el) { el.textContent = lbl; });
+    var isDay = ui.scope === 'day';
+    var pill = $('#homePeriodPill');
+    if (pill) pill.classList.toggle('day-mode', isDay);
+    var hLbl = $('#homePeriodLbl');
+    if (hLbl && isDay) {
+      hLbl.textContent = dayLabel(ui.date);
+    }
+    var dp = $('#homeDatePick');
+    if (dp) dp.value = ui.date;
+    var isEn = window.I18n && window.I18n.lang() === 'en';
+    var db = $('#scopeDayBtn'), mb = $('#scopeMonthBtn');
+    if (db) { db.textContent = isEn ? 'Daily / Date' : 'আজ / দৈনিক'; db.classList.toggle('on', isDay); }
+    if (mb) { mb.textContent = isEn ? 'Monthly' : 'মাসিক'; mb.classList.toggle('on', !isDay); }
   }
 
   function renderHome(animate) {
-    var list = monthEntries();
+    var isDay = ui.scope === 'day';
+    var list = isDay ? dayEntries() : monthEntries();
     var t = totals(list);
-    var isNow = ui.month.y === now.getFullYear() && ui.month.m === now.getMonth();
+    var isNow = isDay ? (ui.date === todayISO()) : (ui.month.y === now.getFullYear() && ui.month.m === now.getMonth());
     var loss = t.net < 0;
+    var isEn = window.I18n && window.I18n.lang() === 'en';
 
-    var mName = getMonths()[ui.month.m];
-    var netText = isNow
-      ? (loss ? T('thisMonthNetLoss') + ' <span class="tag-loss">' + T('inLoss') + '</span>' : T('thisMonthNetProfit'))
-      : (loss ? T('monthNetLoss', { m: mName }) + ' <span class="tag-loss">' + T('inLoss') + '</span>' : T('monthNetProfit', { m: mName }));
+    var netText;
+    if (isDay) {
+      var dName = dayLabel(ui.date);
+      if (isNow) {
+        netText = isEn
+          ? (loss ? "Today's Net Loss" + ' <span class="tag-loss">' + T('inLoss') + '</span>' : "Today's Net Profit")
+          : (loss ? 'আজকের নেট লস <span class="tag-loss">' + T('inLoss') + '</span>' : 'আজকের নেট লাভ');
+      } else {
+        netText = isEn
+          ? (dName + (loss ? ' Net Loss <span class="tag-loss">' + T('inLoss') + '</span>' : ' Net Profit'))
+          : (dName + (loss ? ' — নেট লস <span class="tag-loss">' + T('inLoss') + '</span>' : ' — নেট লাভ'));
+      }
+    } else {
+      var mName = getMonths()[ui.month.m];
+      netText = isNow
+        ? (loss ? T('thisMonthNetLoss') + ' <span class="tag-loss">' + T('inLoss') + '</span>' : T('thisMonthNetProfit'))
+        : (loss ? T('monthNetLoss', { m: mName }) + ' <span class="tag-loss">' + T('inLoss') + '</span>' : T('monthNetProfit', { m: mName }));
+    }
     $('#netLabel').innerHTML = netText;
     var na = $('#netAmount');
     na.classList.toggle('loss', loss);
@@ -287,7 +319,9 @@
     }).join('');
 
     // খরচ কার্ড
-    $('#spendLbl').textContent = t.ads > 0 ? T('spendAds', { v: fmt$(t.ads) }) : T('thisMonthSpend');
+    $('#spendLbl').textContent = t.ads > 0
+      ? T('spendAds', { v: fmt$(t.ads) })
+      : (isDay ? (isEn ? (isNow ? "Today's Spend" : dayLabel(ui.date) + ' Spend') : (isNow ? 'আজকের খরচ' : dayLabel(ui.date) + '-এর খরচ')) : T('thisMonthSpend'));
     $('#spendVal').textContent = fmt$(t.exp);
     var byCat = {};
     list.forEach(function (e) { if (e.type === 'expense') byCat[e.cat] = (byCat[e.cat] || 0) + e.amount; });
@@ -372,7 +406,7 @@
     var q = ui.q.trim().toLowerCase();
     var baseList = ui.txFilter === 'due'
       ? S.entries.filter(function (e) { return e.type === 'income' && e.status === 'due'; })
-      : monthEntries();
+      : (ui.scope === 'day' ? dayEntries() : monthEntries());
     var list = baseList.filter(function (e) {
       if (ui.txFilter !== 'all' && ui.txFilter !== 'due' && e.type !== ui.txFilter) return false;
       if (!q) return true;
@@ -386,12 +420,20 @@
       return;
     }
     if (!list.length) {
-      box.innerHTML = '<div class="empty"><b>' + (q ? T('noMatch') : T('noTxTitle')) + '</b></div>';
+      var isEn = window.I18n && window.I18n.lang() === 'en';
+      box.innerHTML = '<div class="empty"><b>' + (q ? T('noMatch') : (ui.scope === 'day' ? (isEn ? 'No entries on ' + dayLabel(ui.date) : dayLabel(ui.date) + ' কোনো লেনদেন নেই') : T('noTxTitle'))) + '</b></div>';
       return;
     }
+    var byDay = {};
+    list.forEach(function (e) { (byDay[e.date] = byDay[e.date] || []).push(e); });
     var html = '', last = '';
     list.forEach(function (e) {
-      if (e.date !== last) { html += '<div class="day-label">' + dayLabel(e.date) + '</div>'; last = e.date; }
+      if (e.date !== last) {
+        var dt = totals(byDay[e.date]);
+        var netCls = dt.net > 0 ? ' pos' : (dt.net < 0 ? ' neg' : '');
+        html += '<div class="day-label" data-jump-day="' + e.date + '"><span>' + dayLabel(e.date) + '</span><span class="day-net' + netCls + '">' + fmt$(dt.net, true) + '</span></div>';
+        last = e.date;
+      }
       html += txRowHTML(e);
     });
     box.innerHTML = html;
@@ -659,6 +701,25 @@
     vib(5);
   }
 
+  function shiftDay(d) {
+    var p = ui.date.split('-').map(Number);
+    var dt = new Date(p[0], p[1] - 1, p[2] + d);
+    ui.date = iso(dt);
+    ui.month = { y: dt.getFullYear(), m: dt.getMonth() };
+    renderTab('home', true);
+    vib(5);
+  }
+
+  function setDay(isoStr) {
+    if (!isoStr || !/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) return;
+    ui.date = isoStr;
+    var p = isoStr.split('-').map(Number);
+    ui.month = { y: p[0], m: p[1] - 1 };
+    ui.scope = 'day';
+    renderTab('home', true);
+    vib(5);
+  }
+
   /* =================================================================
      শিট (নিচ থেকে উঠে আসা প্যানেল)
      ================================================================= */
@@ -754,7 +815,7 @@
       type: 'income', expr: '', prev: '',
       svc: first ? first.id : null, client: null,
       cat: 'fb', forSvc: null, status: 'paid',
-      date: (ui.month.y === now.getFullYear() && ui.month.m === now.getMonth()) ? todayISO() : monthKey(ui.month.y, ui.month.m) + '-01',
+      date: ui.scope === 'day' ? ui.date : ((ui.month.y === now.getFullYear() && ui.month.m === now.getMonth()) ? todayISO() : monthKey(ui.month.y, ui.month.m) + '-01'),
       note: '', editId: null
     }, opts || {});
     renderEntry();
@@ -2039,8 +2100,17 @@
     var t;
     if ((t = e.target.closest('[data-tab]')) && !t.closest('.sheet')) { go(t.dataset.tab); return; }
     if ((t = e.target.closest('[data-add]'))) { openEntry({ type: t.dataset.add }); return; }
-    if (e.target.closest('[data-mprev]')) { shiftMonth(-1); return; }
-    if (e.target.closest('[data-mnext]')) { shiftMonth(1); return; }
+    if (e.target.closest('[data-mprev]')) {
+      if (e.target.closest('#s-home') && ui.scope === 'day') shiftDay(-1);
+      else shiftMonth(-1);
+      return;
+    }
+    if (e.target.closest('[data-mnext]')) {
+      if (e.target.closest('#s-home') && ui.scope === 'day') shiftDay(1);
+      else shiftMonth(1);
+      return;
+    }
+    if ((t = e.target.closest('[data-jump-day]'))) { setDay(t.dataset.jumpDay); return; }
     if ((t = e.target.closest('[data-tx]'))) { if (t.closest('#modal')) closeModal(); setTimeout(function () { openTx(t.dataset.tx); }, t.closest('#modal') ? 200 : 0); return; }
     if ((t = e.target.closest('[data-person]'))) {
       var pid = t.dataset.person;
@@ -2066,6 +2136,30 @@
   });
 
   $('#avatarBtn').addEventListener('click', openSettings);
+  if ($('#scopeSeg')) {
+    $('#scopeSeg').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-scope]'); if (!b) return;
+      var next = b.dataset.scope;
+      if (next === ui.scope) {
+        if (next === 'day' && ui.date !== todayISO()) { setDay(todayISO()); }
+        return;
+      }
+      vib(6);
+      ui.scope = next;
+      if (next === 'day') {
+        var curM = monthKey(ui.month.y, ui.month.m);
+        if (ui.date.indexOf(curM) !== 0) {
+          ui.date = (ui.month.y === now.getFullYear() && ui.month.m === now.getMonth()) ? todayISO() : curM + '-01';
+        }
+      }
+      renderTab('home', true);
+    });
+  }
+  if ($('#homeDatePick')) {
+    $('#homeDatePick').addEventListener('change', function (e) {
+      if (e.target.value) setDay(e.target.value);
+    });
+  }
   if ($('#privacyBtn')) $('#privacyBtn').addEventListener('click', togglePrivacy);
   if ($('#goalCard')) $('#goalCard').addEventListener('click', openGoalSettings);
   if ($('#duePill')) $('#duePill').addEventListener('click', function () {

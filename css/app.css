@@ -174,7 +174,25 @@ body.privacy-on .d-amt {
 }
 .month-pill button { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--mut-d); }
 .month-pill button:active { background: var(--d3); }
-.month-lbl { font-weight: 600; font-size: 13.5px; min-width: 7.2em; text-align: center; }
+.month-lbl { font-weight: 600; font-size: 13.5px; min-width: 7.2em; text-align: center; display: block; }
+.period-lbl-wrap { position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.date-overlay {
+  position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
+  cursor: pointer; pointer-events: none;
+}
+.month-pill.day-mode .date-overlay { pointer-events: auto; }
+.scope-row { display: flex; align-items: center; justify-content: flex-start; margin-top: 14px; }
+.scope-seg {
+  display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px;
+  background: var(--d2); border: 1px solid var(--line-d);
+}
+.scope-seg button {
+  height: 28px; padding: 0 13px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; color: var(--mut-d);
+  transition: background .2s var(--ease), color .2s, transform .12s;
+}
+.scope-seg button:active { transform: scale(.95); }
+.scope-seg button.on { background: #fff; color: #111; }
 
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 30px; }
 .label { color: var(--mut-d); font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
@@ -357,7 +375,14 @@ body.privacy-on .d-amt {
 }
 .demo-bar button { background: #1A1700; color: #FFE14A; border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 12.5px; white-space: nowrap; }
 
-.day-label { font-size: 12.5px; color: var(--mut); font-weight: 700; margin: 16px 0 2px; letter-spacing: .01em; }
+.day-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 12.5px; color: var(--mut); font-weight: 700; margin: 16px 0 2px; letter-spacing: .01em;
+  cursor: pointer;
+}
+.day-label .day-net { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 12px; }
+.day-label .day-net.pos { color: var(--pos); }
+.day-label .day-net.neg { color: #D93A2F; }
 .tx {
   width: 100%; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 12px; align-items: center;
   padding: 9px 6px; margin: 0 -6px; width: calc(100% + 12px);

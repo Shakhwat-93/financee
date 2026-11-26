@@ -30,13 +30,23 @@
           <button class="avatar-btn" id="avatarBtn" aria-label="সেটিংস"></button>
           <div class="topbar-r">
             <button class="icon-btn-d" id="privacyBtn" aria-label="ব্যালেন্স লুকান"></button>
-            <div class="month-pill">
-              <button data-mprev aria-label="আগের মাস"></button>
-              <span class="month-lbl"></span>
-              <button data-mnext aria-label="পরের মাস"></button>
+            <div class="month-pill" id="homePeriodPill">
+              <button data-mprev aria-label="আগের"></button>
+              <label class="period-lbl-wrap">
+                <span class="month-lbl" id="homePeriodLbl"></span>
+                <input type="date" id="homeDatePick" class="date-overlay" aria-label="তারিখ বাছুন">
+              </label>
+              <button data-mnext aria-label="পরের"></button>
             </div>
           </div>
         </header>
+
+        <div class="scope-row" data-st>
+          <div class="scope-seg" id="scopeSeg">
+            <button data-scope="day" id="scopeDayBtn">আজ / দৈনিক</button>
+            <button data-scope="month" class="on" id="scopeMonthBtn">মাসিক</button>
+          </div>
+        </div>
 
         <div class="hero">
           <div class="hero-text">

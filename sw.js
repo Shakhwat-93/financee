@@ -1,5 +1,5 @@
 /* হিসাব খাতা — অফলাইন সার্ভিস ওয়ার্কার */
-const VERSION = 'hisab-v15';
+const VERSION = 'hisab-v16';
 const SHELL = [
   './',
   'index.html',
